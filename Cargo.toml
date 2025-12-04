@@ -1,12 +1,21 @@
 [package]
-name = "slint-rust-template"
+name = "qbit"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[profile.release]
+codegen-units = 1
+lto = false
+opt-level = "z"
+panic = "abort"
+strip = "symbols"
 
 [dependencies]
-slint = "1.14.1"
-
-[build-dependencies]
-slint-build = "1.14.1"
+bendy = { version = "0.6.1", features = ["serde"] }
+clap = "4.5.53"
+crossterm = "0.29.0"
+ratatui = "0.29.0"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_bytes = "0.11.19"
+sha1 = "0.10.6"
+tokio = { version = "1.48.0", features = ["rt-multi-thread"] }
