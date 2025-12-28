@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use serde_bytes::ByteBuf;
-use std::fmt::{Display, Debug};
+use std::fmt::Debug;
 
 #[derive(Deserialize)]
 pub struct Info {
@@ -9,41 +9,6 @@ pub struct Info {
     #[serde(rename = "piece length")]
     pub piece_length: u32,
     pub pieces: ByteBuf,
-}
-
-#[derive(Deserialize)]
-pub struct InfoHash {
-    hash: [u8; 20],
-}
-
-impl Default for InfoHash {
-    fn default() -> Self {
-        InfoHash { hash: [0; 20] }
-    }
-}
-
-impl From<[u8; 20]> for InfoHash {
-    fn from(value: [u8; 20]) -> Self {
-        InfoHash { hash: value }
-    }
-}
-
-impl Display for InfoHash {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.hash.iter().map(|x| format!("{x:0x}")).collect::<String>())
-    }
-}
-
-impl Debug for InfoHash {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "\"{}\"", self.to_string())
-    }
-}
-
-impl InfoHash {
-    pub fn hash(&self) -> &[u8] {
-        &self.hash
-    }
 }
 
 #[derive(Default, Deserialize)]
