@@ -4,6 +4,7 @@ pub mod response;
 use bytes::Bytes;
 use crate::torrent::Metadata as Torrent;
 pub use response::Response;
+pub use peer::Peer as Peer;
 
 
 

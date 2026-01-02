@@ -4,6 +4,5 @@ static EXAMPLE_BENCODE : &[u8] = b"d8:intervali900e5:peersld2:ip14:79.127.184.14
 
 fn main() {
     let tracker_response : tracker::Response = EXAMPLE_BENCODE.try_into().unwrap();
-    
     eprintln!("{tracker_response:#?}");
 }

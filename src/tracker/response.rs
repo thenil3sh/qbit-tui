@@ -6,8 +6,8 @@ use crate::tracker::peer::Peer;
 
 #[derive(serde::Deserialize, Debug)]
 pub struct Response {
-    interval : u32,
-    peers : Vec<Peer>
+    pub interval : u32,
+    pub peers : Vec<Peer>
 }
 
 impl TryFrom<&[u8]> for Response {
