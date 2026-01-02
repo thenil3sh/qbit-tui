@@ -13,6 +13,7 @@ strip = "symbols"
 [dependencies]
 anyhow = "1.0.100"
 bendy = { version = "0.6.1", features = ["serde"] }
+bytes = "1.11.0"
 clap = "4.5.53"
 crossterm = "0.29.0"
 form_urlencoded = "1.2.2"

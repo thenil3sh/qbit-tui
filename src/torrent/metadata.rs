@@ -34,7 +34,7 @@ impl Metadata {
             bendy::serde::from_bytes(&file).expect("Failed to parse torrent into TorrentMeta");
 
         metadata.info_byte = Self::scrap_raw_info(&file).unwrap().into();
-        metadata.info_hash = Self::generate_info_hash(&metadata.info_byte.0).unwrap().into();
+        metadata.info_hash = Self::generate_info_hash(&metadata.info_byte).unwrap().into();
 
         Ok(metadata)
     }

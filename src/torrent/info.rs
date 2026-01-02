@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use serde_bytes::ByteBuf;
-use std::fmt::Debug;
+use std::{fmt::Debug, ops::Deref};
 
 #[derive(Deserialize)]
 pub struct Info {
@@ -17,6 +17,13 @@ pub struct RawInfo (pub Vec<u8>);
 impl From<Vec<u8>> for RawInfo {
     fn from(value: Vec<u8>) -> Self {
         Self(value)
+    }
+}
+
+impl Deref for RawInfo {
+    type Target = Vec<u8>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

@@ -1,17 +1,19 @@
-use std::ops::Deref;
-
+use std::{net::Ipv4Addr, ops::Deref};
 use rand::{
     rng,
     RngCore,
 };
+use serde::Deserialize;
 
+#[derive(Deserialize, Debug)]
 pub struct Peer {
-    
+    ip : Ipv4Addr,
+    port : u16
 }
 
-pub struct PeerId([u8;20]);
+pub struct Id([u8;20]);
 
-impl PeerId {
+impl Id {
     pub fn new() -> Self {
         let mut byte_array: [u8; 20] = [0; 20];
 
@@ -26,7 +28,7 @@ impl PeerId {
     }
 }
 
-impl Deref for PeerId {
+impl Deref for Id {
     type Target = [u8];
     fn deref(&self) -> &Self::Target {
         self.0.as_ref()
