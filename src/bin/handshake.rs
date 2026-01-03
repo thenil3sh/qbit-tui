@@ -40,7 +40,7 @@ async fn handle_handshake(i : usize,info_hash: [u8; 20], peer: qbit::peer::Peer)
         }
     })
     .await;
-    if let Err(_) = timeout {
+    if timeout.is_err() {
         eprintln!("\x1b[031mPeer : {i:2}, timed out\x1b[0m");
     }
 }

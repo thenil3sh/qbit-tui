@@ -6,20 +6,18 @@ use tokio::{
 
 use crate::peer::{Handshake, Peer};
 
+#[allow(unused)] ///////////////////// For nowww 
 pub struct Connection {
     peer: Peer,
     stream: TcpStream,
 }
 
 impl Connection {
-    pub async fn connect(peer: &Peer) -> Result<Self, std::io::Error> {
+    pub async fn connect(peer: Peer) -> Result<Self, std::io::Error> {
         let socket_addr = SocketAddr::new(V4(peer.ip), peer.port);
         let stream = TcpStream::connect(socket_addr).await?;
 
-        Ok(Self {
-            peer: *peer,
-            stream,
-        })
+        Ok(Self { peer, stream })
     }
 
     pub async fn handshake(&mut self, handshake: Handshake) -> Result<(), std::io::Error> {

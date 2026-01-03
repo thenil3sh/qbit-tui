@@ -21,6 +21,6 @@ pub struct Peer {
 
 impl Peer {
     pub async fn connect(&self) -> Result<Connection, std::io::Error> {
-        Connection::connect(self).await
+        Connection::connect(*self).await
     }
 }

@@ -46,7 +46,7 @@ impl Metadata {
     }
 
     fn scrap_raw_info(buffer: &[u8]) -> Result<Vec<u8>, anyhow::Error> {
-        let mut decoder = bendy::decoding::Decoder::new(&buffer);
+        let mut decoder = bendy::decoding::Decoder::new(buffer);
 
         let torrent_object = decoder
             .next_object()?

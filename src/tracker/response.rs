@@ -9,6 +9,6 @@ pub struct Response {
 impl TryFrom<&[u8]> for Response {
     type Error = bendy::serde::Error;
     fn try_from(value: &[u8]) -> Result<Self, bendy::serde::Error> {
-        bendy::serde::from_bytes(value.as_ref())
+        bendy::serde::from_bytes(value)
     }
 }

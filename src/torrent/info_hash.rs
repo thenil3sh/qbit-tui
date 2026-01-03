@@ -2,15 +2,9 @@ use std::{fmt::{Debug, Display}, ops::Deref};
 use serde::Deserialize;
 
 
-#[derive(Deserialize)]
+#[derive(Default, Deserialize)]
 pub struct InfoHash {
     hash: [u8; 20],
-}
-
-impl Default for InfoHash {
-    fn default() -> Self {
-        InfoHash { hash: [0; 20] }
-    }
 }
 
 impl From<[u8; 20]> for InfoHash {
@@ -27,7 +21,7 @@ impl Display for InfoHash {
 
 impl Debug for InfoHash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "\"{}\"", self.to_string())
+        write!(f, "\"{}\"", self)
     }
 }
 
