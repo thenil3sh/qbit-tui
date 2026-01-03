@@ -1,7 +1,3 @@
-use std::{any, io::Read};
-
-use anyhow::{anyhow, bail};
-
 use crate::tracker::peer::Peer;
 
 #[derive(serde::Deserialize, Debug)]

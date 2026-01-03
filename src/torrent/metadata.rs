@@ -80,6 +80,7 @@ impl Debug for Info {
 impl Info {}
 
 mod test {
+    #[allow(unused_imports)]
     use super::*;
     #[test]
     fn generating_and_comparing_hashes() {

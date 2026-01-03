@@ -21,7 +21,11 @@ impl Handshake {
 
         Self(buffer)
     }
-    
+
+    /// This is 68 bytes in length, more on https://www.bittorrent.org/beps/bep_0003.html#peer-protocol:~:text=The%20peer%20wire,from%20each%20other.
+    pub fn bytes(&self) -> &[u8] {
+        &self.0
+    }
 }
 
 impl From<torrent::Metadata> for Handshake {
@@ -33,6 +37,14 @@ impl From<torrent::Metadata> for Handshake {
 impl From<&InfoHash> for Handshake {
     fn from(info_hash: &InfoHash) -> Self {
         Handshake::new(info_hash)
+    }
+}
+
+impl From<&[u8;20]> for Handshake {
+    fn from(peer_id: &[u8;20]) -> Self {
+        let mut raw_buf = Handshake::raw();
+        raw_buf[28..48].copy_from_slice(peer_id);
+        Self(raw_buf)
     }
 }
 

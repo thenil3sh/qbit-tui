@@ -1,4 +1,4 @@
-use std::{net::Ipv4Addr, ops::Deref, sync::LazyLock};
+use std::{ops::Deref, sync::LazyLock};
 use rand::{
     rng,
     RngCore,
