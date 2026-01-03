@@ -1,6 +1,5 @@
 use qbit::{
-    torrent,
-    tracker::{self, get_url},
+    peer::id::PEER_ID, torrent, tracker::{self, get_url}
 };
 use std::{
     net::{IpAddr, SocketAddr},
@@ -10,7 +9,6 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     task::JoinSet,
 };
-use tracker::{peer, Peer};
 
 
 // Tracker responds with this bencode... 
@@ -27,14 +25,14 @@ async fn main() {
 
     let tracker_response: tracker::Response = EXAMPLE_BENCODE.try_into().unwrap();
 
-    let mut handshakes = JoinSet::new();
+    let mut handshakes = Vec::new();
 
     for i in 0..tracker_response.peers.len() {
         println!("Connecting to peer : {i}");
         let info_hash = metadata.info_hash.clone();
 
         let peer = tracker_response.peers[i];
-        handshakes.spawn(async move {
+        let handle = tokio::spawn(async move {
             let timeout = tokio::time::timeout(Duration::from_secs(5), async move {
                 let socket_address = SocketAddr::new(IpAddr::V4(peer.ip), peer.port);
 
@@ -42,7 +40,7 @@ async fn main() {
                 handshake[0] = 19;
                 handshake[1..20].copy_from_slice(b"BitTorrent protocol");
                 handshake[28..48].copy_from_slice(info_hash.clone().as_ref());
-                handshake[48..].copy_from_slice(&peer::Id::new());
+                handshake[48..].copy_from_slice(&PEER_ID);
 
                 match tokio::net::TcpStream::connect(socket_address).await {
                     Ok(mut tcp_stream) => {
@@ -55,18 +53,22 @@ async fn main() {
                         }
                     }
                     Err(x) => {
-                        eprintln!("\x1b[033mpeer {i}, humbly refused : {x}\x1b[0m")
+                        eprintln!("\x1b[033mpeer {i}, humbly refused : {x}\x1b[0m");
+                        
                     }
                 }
             }).await;
             if let Err(_) = timeout {
-                println!("\x1b[031mPeer : {i}, timed out\x1b[0m");
+                println!("\x1b[031mPeer : {i:2}, timed out\x1b[0m");
             }
         });
+        handshakes.push(handle);
     }
 
     
-    handshakes.join_all().await;
+    for handle in handshakes {
+        handle.await.unwrap();
+    }
     // while let Some(x) = handshakes.join_next().await {
     //     match x {
     //         Ok(_) => println!("Success??"),

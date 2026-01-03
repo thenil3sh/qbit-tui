@@ -1,10 +1,8 @@
-
-pub mod peer;
+use crate::peer;
 pub mod response;
 use bytes::Bytes;
 use crate::torrent::Metadata as Torrent;
 pub use response::Response;
-pub use peer::Peer as Peer;
 
 
 
@@ -13,7 +11,7 @@ pub fn get_url(torrent : Torrent) -> String {
         "{}?info_hash={}&peer_id={}&port={}&uploaded={}&downloaded={}&left={}",
         torrent.announce,
         torrent.info_hash.to_url_encoded(),
-        peer::Id::new().url_encoded(),
+        peer::ID.url_encoded(),
         6881,
         0,
         0,
