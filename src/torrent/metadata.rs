@@ -82,9 +82,5 @@ impl Info {}
 mod test {
     #[allow(unused_imports)]
     use super::*;
-    #[test]
-    fn generating_and_comparing_hashes() {
-        let info_hash = Metadata::from_file("test/oreo.torrent").unwrap().info_hash;
-        println!("{:?}", info_hash);
-    }
+    
 }

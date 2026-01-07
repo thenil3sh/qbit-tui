@@ -6,3 +6,4 @@
 - [ ] kindly, explore ratatui
 - [ ] don't give up, please
 - [ ] make error for every module
+- [ ] more tests!!!

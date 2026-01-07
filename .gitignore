@@ -31,4 +31,4 @@ target
 
 
 # Torrent files i used for testing
-*.torrent
+test/.torrent
