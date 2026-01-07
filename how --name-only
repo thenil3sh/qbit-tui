@@ -1,0 +1,104 @@
+[33mcommit a3cebecbb6d1d332e2477dbee401a73d774595a9[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m
+Author: thenil3sh <nileshkumar.newdelhi@gmail.com>
+Date:   Sat Jan 3 18:41:54 2026 +0530
+
+    Updated README.md\ni use zed btw
+
+[1mdiff --git a/.idea/.gitignore b/.idea/.gitignore[m
+[1mdeleted file mode 100755[m
+[1mindex 13566b8..0000000[m
+[1m--- a/.idea/.gitignore[m
+[1m+++ /dev/null[m
+[36m@@ -1,8 +0,0 @@[m
+[31m-# Default ignored files[m
+[31m-/shelf/[m
+[31m-/workspace.xml[m
+[31m-# Editor-based HTTP Client requests[m
+[31m-/httpRequests/[m
+[31m-# Datasource local storage ignored files[m
+[31m-/dataSources/[m
+[31m-/dataSources.local.xml[m
+[1mdiff --git a/.idea/modules.xml b/.idea/modules.xml[m
+[1mdeleted file mode 100755[m
+[1mindex fad145f..0000000[m
+[1m--- a/.idea/modules.xml[m
+[1m+++ /dev/null[m
+[36m@@ -1,8 +0,0 @@[m
+[31m-<?xml version="1.0" encoding="UTF-8"?>[m
+[31m-<project version="4">[m
+[31m-  <component name="ProjectModuleManager">[m
+[31m-    <modules>[m
+[31m-      <module fileurl="file://$PROJECT_DIR$/.idea/qbit.iml" filepath="$PROJECT_DIR$/.idea/qbit.iml" />[m
+[31m-    </modules>[m
+[31m-  </component>[m
+[31m-</project>[m
+\ No newline at end of file[m
+[1mdiff --git a/.idea/qbit.iml b/.idea/qbit.iml[m
+[1mdeleted file mode 100755[m
+[1mindex cf84ae4..0000000[m
+[1m--- a/.idea/qbit.iml[m
+[1m+++ /dev/null[m
+[36m@@ -1,11 +0,0 @@[m
+[31m-<?xml version="1.0" encoding="UTF-8"?>[m
+[31m-<module type="EMPTY_MODULE" version="4">[m
+[31m-  <component name="NewModuleRootManager">[m
+[31m-    <content url="file://$MODULE_DIR$">[m
+[31m-      <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />[m
+[31m-      <excludeFolder url="file://$MODULE_DIR$/target" />[m
+[31m-    </content>[m
+[31m-    <orderEntry type="inheritedJdk" />[m
+[31m-    <orderEntry type="sourceFolder" forTests="false" />[m
+[31m-  </component>[m
+[31m-</module>[m
+\ No newline at end of file[m
+[1mdiff --git a/.idea/vcs.xml b/.idea/vcs.xml[m
+[1mdeleted file mode 100755[m
+[1mindex 35eb1dd..0000000[m
+[1m--- a/.idea/vcs.xml[m
+[1m+++ /dev/null[m
+[36m@@ -1,6 +0,0 @@[m
+[31m-<?xml version="1.0" encoding="UTF-8"?>[m
+[31m-<project version="4">[m
+[31m-  <component name="VcsDirectoryMappings">[m
+[31m-    <mapping directory="" vcs="Git" />[m
+[31m-  </component>[m
+[31m-</project>[m
+\ No newline at end of file[m
+[1mdiff --git a/.vscode/extensions.json b/.vscode/extensions.json[m
+[1mdeleted file mode 100755[m
+[1mindex 8a69292..0000000[m
+[1m--- a/.vscode/extensions.json[m
+[1m+++ /dev/null[m
+[36m@@ -1,7 +0,0 @@[m
+[31m-{[m
+[31m-  "recommendations": [[m
+[31m-    "rust-lang.rust-analyzer",[m
+[31m-    "vadimcn.vscode-lldb",[m
+[31m-    "Slint.slint"[m
+[31m-  ][m
+[31m-}[m
+[1mdiff --git a/.vscode/settings.json b/.vscode/settings.json[m
+[1mdeleted file mode 100755[m
+[1mindex d98d2bf..0000000[m
+[1m--- a/.vscode/settings.json[m
+[1m+++ /dev/null[m
+[36m@@ -1,5 +0,0 @@[m
+[31m-{[m
+[31m-    "[rust]": {[m
+[31m-        "editor.defaultFormatter": "rust-lang.rust-analyzer"[m
+[31m-    }[m
+[31m-}[m
+[1mdiff --git a/README.md b/README.md[m
+[1mdeleted file mode 100755[m
+[1mindex 6835307..0000000[m
+[1m--- a/README.md[m
+[1m+++ /dev/null[m
+[36m@@ -1,7 +0,0 @@[m
+[31m-# qbit[m
+[31m-[m
+[31m-# ToDo[m
+[31m-- [x] Add todo, lmao[m
+[31m-- [x] Deserialize tracker's response into url[m
+[31m-- [ ] kindly, explore ratatui[m
+[31m-- [ ] don't give up, please[m
+\ No newline at end of file[m

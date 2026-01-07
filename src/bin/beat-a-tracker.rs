@@ -1,3 +1,5 @@
+use std::io::Read;
+
 use qbit::{
     torrent::Metadata,
     tracker,
@@ -15,6 +17,9 @@ async fn main() {
         .bytes()
         .await
         .expect("Failed to get message body");
-
+    
     println!("{}", str::from_utf8(&response).unwrap());
+    
+    let resp : tracker::Response = bendy::serde::from_bytes(response.as_ref()).unwrap();
+    // println!("{:?}", resp);
 }
