@@ -73,9 +73,8 @@ mod test {
     }
 
     #[test]
-    #[should_panic]
     fn decoding_invalid_message_id() {
-        Message::decode(9, Bytes::new()).unwrap();
+        assert!(Message::decode(9, Bytes::new()).is_err());
     }
 
     #[test]
