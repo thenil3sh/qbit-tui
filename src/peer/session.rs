@@ -1,5 +1,5 @@
-use crate::peer::{Connection, Message, connection};
-use std::time::{Instant};
+use crate::{peer::{connection, Connection, Message}, torrent};
+use std::{sync::Arc, time::Instant};
 use anyhow::{Error, anyhow};
 use bytes::Bytes;
 use serde::de::Unexpected;
@@ -7,17 +7,18 @@ use serde::de::Unexpected;
 pub struct Session {
     connection : Connection,
     last_active : Instant,
-
+    torrent_info : Arc<torrent::Info>,
+    state : Arc<Mutex<torrent::State>>,
     is_choking : bool,
     is_interested : bool,
-
     am_choking : bool,
     am_interested : bool,
-
     bit_field : Option<Bytes>
 }
 
+use tokio::sync::Mutex;
 use Message::*;
+
 impl Session {
 
     async fn run() {
@@ -50,7 +51,12 @@ impl Session {
     }
 
     fn peer_has_something_i_want(&self) -> bool {
-        todo!()
+        todo!("Yet to be implemented : Check on peer, if they have something you need");
+    }
+    
+    fn has_piece(&self) -> bool {
+        todo!("Iterate across bitfield, it's prolly got something you want");
+        todo!("I'll remove this method, i guess");
     }
 
     fn handle_bitfield(&mut self, bitfield : Bytes) {
@@ -63,22 +69,12 @@ impl Session {
     }
 }
 
-
-enum SessionError {
-    ProtocolViolation
-}
-
-impl From<Connection> for Session {
-    fn from(connection: Connection) -> Self {
-        Self {
-            connection,
-            last_active : Instant::now(),
-            is_choking : true,
-            is_interested : false,
-            am_choking : true,
-            am_interested : false,
-
-            bit_field : None
-        }
-    }
+#[derive(thiserror::Error, Debug)]
+pub(crate) enum SessionError {
+    #[error("Protocol violation")]
+    ProtocolViolation,
+    #[error("Session timed out")]
+    TimeOut,
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
 }
