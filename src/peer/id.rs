@@ -3,6 +3,7 @@ use rand::{
     rng,
     RngCore,
 };
+use serde::Deserialize;
 
 /// # peer::ID
 /// Initialized once per session
@@ -10,6 +11,8 @@ pub static PEER_ID : LazyLock<Id> = LazyLock::new(|| {
     Id::new()
 });
 
+#[derive(Deserialize, Copy, Clone)]
+#[cfg_attr(test, derive(PartialEq, Debug))]
 pub struct Id([u8;20]);
 
 impl Id {

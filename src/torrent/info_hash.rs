@@ -1,4 +1,5 @@
 use std::{fmt::{Debug, Display}, ops::Deref};
+use ratatui::style::palette::tailwind;
 use serde::Deserialize;
 
 
@@ -27,13 +28,19 @@ impl Debug for InfoHash {
 
 impl InfoHash {
     pub fn to_url_encoded(&self) -> String {
-        self.iter().map(|x| format!("%{x:02X}")).collect()
+        self.as_ref().iter().map(|x| format!("%{x:02X}")).collect()
     }
 }
 
 impl Deref for InfoHash {
     type Target = [u8;20];
     fn deref(&self) -> &Self::Target {
+        &self.hash
+    }
+}
+
+impl AsRef<[u8]> for InfoHash {
+    fn as_ref(&self) -> &[u8] {
         &self.hash
     }
 }

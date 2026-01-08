@@ -7,7 +7,7 @@ use qbit::{
 
 #[tokio::main]
 async fn main() {
-    let torrent = Metadata::from_file("test/debian-13.2.0-amd64-netinst.iso.torrent").unwrap();
+    let torrent = Metadata::from_file("test/debian.torrent").unwrap();
 
     let url = tracker::get_url(torrent);
 

@@ -6,7 +6,7 @@ use tokio::{
 };
 use bytes::Bytes;
 
-use crate::peer::{Handshake, Message, Peer};
+use crate::peer::{Handshake, Message, Peer, PeerSession, session};
 
 #[allow(unused)] ///////////////////// For nowww 
 pub struct Connection {
@@ -48,6 +48,10 @@ impl Connection {
         stream.read_exact(&mut buffer).await?;
         
         Ok(buffer.freeze())
+    }
+
+    pub(crate) async fn send_interested(&mut self) -> Result<(), session::SessionError> {
+        todo!()
     }
 }
 

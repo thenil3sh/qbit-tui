@@ -73,6 +73,11 @@ mod test {
     }
 
     #[test]
+    fn parsing_a_message() {
+        let message = Message::Bitfield(b"".as_ref().into());
+    }
+
+    #[test]
     fn decoding_invalid_message_id() {
         assert!(Message::decode(9, Bytes::new()).is_err());
     }

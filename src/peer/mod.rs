@@ -2,6 +2,7 @@ pub mod id;
 mod handshake;
 mod connection;
 mod message;
+mod session;
 
 use std::net::Ipv4Addr;
 
@@ -10,15 +11,22 @@ use serde::Deserialize;
 pub use handshake::Handshake;
 pub use connection::Connection as Connection;
 pub use message::*;
+pub(crate) use session::Session as PeerSession;
+
+use crate::peer::id::Id;
 
 /// Too lazy to explain... 
 /// https://www.bittorrent.org/beps/bep_0003.html#peer-protocol:~:text=protocol%20as%20well.-,peer%20protocol,-BitTorrent%27s%20peer%20protocol
 
 
-#[derive(Copy, Clone, Deserialize, Debug)]
+#[derive(Copy, Clone, Deserialize)]
+#[cfg_attr(test, derive(PartialEq, Debug))]
 pub struct Peer {
     pub ip : Ipv4Addr,
-    pub port : u16
+    pub port : u16,
+
+    #[serde(default)]
+    pub id : Option<Id>,
 }
 
 impl Peer {
