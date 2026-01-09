@@ -1,6 +1,6 @@
 use crate::peer::{id, message, Connection};
 use bytes::Bytes;
-use serde::de::Unexpected;
+use serde::{de::Unexpected, Serialize};
 use std::io::{self, Error, ErrorKind};
 
 #[derive(Debug)]
@@ -20,6 +20,14 @@ pub enum Message {
     },
     // Cancel,
     UnexpectedId(u8),
+}
+
+impl Serialize for Message {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer {
+                todo!("Implement serializer for message")
+    }
 }
 
 impl Message {

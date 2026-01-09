@@ -1,0 +1,12 @@
+use bytes::Bytes;
+
+#[derive(Debug)]
+pub enum Event {
+    BitFieldUpdated,
+    ChokedMe,
+    UnchokedMe,
+    PeerInterested,
+    PieceRecieved { index : u32, offset : u32, data : Bytes },
+    KeepAlive,
+    PeerNotInterested
+}

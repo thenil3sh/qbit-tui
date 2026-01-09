@@ -1,5 +1,6 @@
 fn main() {
-    let vec = vec![1,2,3,4,4,5,6];
-    
-    println!("{vec:?}");
+    let zippie = (1..10).zip(1..20);
+    for i in zippie {
+        print!("{i:?}");
+    }
 }

@@ -1,14 +1,17 @@
-use std::net::{IpAddr::V4, SocketAddr};
+use bytes::Bytes;
 use bytes::BytesMut;
+use std::net::{IpAddr::V4, SocketAddr};
+use std::time::Duration;
+use tokio::time::timeout;
 use tokio::{
     io::{self, AsyncReadExt, AsyncWriteExt},
     net::TcpStream,
 };
-use bytes::Bytes;
 
-use crate::peer::{Handshake, Message, Peer, PeerSession, session};
+use crate::peer::SessionError;
+use crate::peer::{session, Handshake, Message, Peer};
 
-#[allow(unused)] ///////////////////// For nowww 
+#[allow(unused)] ///////////////////// For nowww
 pub struct Connection {
     peer: Peer,
     stream: TcpStream,
@@ -29,33 +32,30 @@ impl Connection {
         self.stream.read_exact(&mut response_buffer).await?;
         Ok(())
     }
-    
-    pub async fn handle(&mut self) -> io::Result<Message> {
-        let length = self.stream.read_u32().await.unwrap();
-        
+
+    pub async fn read_message(&mut self) -> Result<Message, io::Error> {
+        let length = self.stream.read_u32().await?;
+
         if length == 0 {
-            // TODO() : i'll reset the connection timeout
             return Ok(Message::KeepAlive);
         }
         let id = self.stream.read_u8().await?;
         let payload = Self::scrap_payload(&mut self.stream, length as usize).await?;
-        
+
         Ok(Message::decode(id, payload)?)
     }
-    
-    async fn scrap_payload(stream : &mut TcpStream, len : usize) -> io::Result<Bytes> {
+
+    async fn scrap_payload(stream: &mut TcpStream, len: usize) -> io::Result<Bytes> {
         let mut buffer = BytesMut::with_capacity(len - 1);
         stream.read_exact(&mut buffer).await?;
-        
+
         Ok(buffer.freeze())
     }
 
-    pub(crate) async fn send_interested(&mut self) -> Result<(), session::SessionError> {
+    pub(crate) async fn send_interested(&mut self) -> Result<(), session::Error> {
         todo!()
     }
 }
 
 #[cfg(test)]
-mod tests {
-    
-}
+mod tests {}
