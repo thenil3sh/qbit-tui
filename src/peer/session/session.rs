@@ -82,6 +82,9 @@ impl Session {
                 self.is_choking = false;
                 Ok(Event::UnchokedMe)
             }
+            Request { index, offset, length } => {
+                todo!()
+            }
             Interested => {
                 self.is_interested = true;
                 Ok(Event::PeerInterested)

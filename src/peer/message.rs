@@ -1,7 +1,8 @@
 use crate::peer::{id, message, Connection};
-use bytes::Bytes;
+use bytes::{BufMut, Bytes, BytesMut};
 use serde::{de::Unexpected, Serialize};
-use std::io::{self, Error, ErrorKind};
+use sha1::digest::typenum::bit;
+use std::io::{self, Error, ErrorKind, Read};
 
 #[derive(Debug)]
 pub enum Message {
@@ -12,7 +13,11 @@ pub enum Message {
     NotInterested,
     // Have,
     Bitfield(Bytes),
-    // Request,
+    Request {
+        index: u32,
+        offset: u32,
+        length: u32,
+    },
     Piece {
         index: u32,
         offset: u32,
@@ -20,14 +25,6 @@ pub enum Message {
     },
     // Cancel,
     UnexpectedId(u8),
-}
-
-impl Serialize for Message {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::Serializer {
-                todo!("Implement serializer for message")
-    }
 }
 
 impl Message {
@@ -68,13 +65,90 @@ impl Message {
             data,
         })
     }
-    
+
+    pub fn encode(&self) -> Bytes {
+        let mut bytes = BytesMut::with_capacity(self.encode_length());
+        match self {
+            Message::Choke => {
+                bytes.put_u32(1);
+                bytes.put_u8(0);
+            }
+            Message::Unchoke => {
+                bytes.put_u32(1);
+                bytes.put_u8(1);
+            }
+            Message::Interested => {
+                bytes.put_u32(1);
+                bytes.put_u8(2);
+            }
+            Message::NotInterested => {
+                bytes.put_u32(1);
+                bytes.put_u8(3);
+            }
+            Message::Bitfield(bitfield) => {
+                bytes.put_u32(bitfield.len() as u32 + 1);
+                bytes.put_u8(5);
+                bytes.put_slice(bitfield);
+            }
+            Message::Request {
+                index,
+                offset,
+                length,
+            } => {
+                bytes.put_u32(13);
+                bytes.put_u8(6);
+                bytes.put_u32(*index);
+                bytes.put_u32(*offset);
+                bytes.put_u32(*length);
+            }
+            Message::Piece {
+                index,
+                offset,
+                data,
+            } => {
+                bytes.put_u32(9 + data.len() as u32);
+                bytes.put_u8(7);
+                bytes.put_u32(*index);
+                bytes.put_u32(*offset);
+                bytes.put_slice(data);
+            }
+            Message::KeepAlive => {
+                bytes.put_u32(0);
+            }
+            Message::UnexpectedId(_) => {
+                panic!("No way you'll do that??")
+            }
+        }
+        bytes.freeze()
+    }
+
+    fn encode_length(&self) -> usize {
+        match self {
+            Message::Choke | Message::Unchoke | Message::Interested | Message::NotInterested => 5,
+            Message::Bitfield(bitfield) => 5 + bitfield.len(),
+            Message::Request {
+                index: _,
+                offset: _,
+                length: _,
+            } => 17,
+            Message::Piece {
+                index: _,
+                offset: _,
+                data,
+            } => 13 + data.len(),
+            Message::KeepAlive => 1,
+            Message::UnexpectedId(_) => 0,
+        }
+    }
 }
 
 #[cfg(test)]
 mod test {
+    use std::io::Read;
+
     use crate::peer::Message;
     use bytes::Bytes;
+    use sha1::digest::typenum::bit;
 
     #[test]
     fn parsing_valid_message() {
@@ -101,14 +175,62 @@ mod test {
     fn decoding_empty_bitfield() {
         assert!(Message::decode(5, Bytes::new()).is_err());
     }
-    
+
     #[test]
     fn decoding_valid_bitfield() {
         Message::decode(5, vec![1u8; 8].into()).unwrap();
     }
-    
+
     #[test]
     fn decoding_valid_piece() {
         Message::decode(7, vec![0u8; 10].into()).unwrap();
+    }
+
+    #[test]
+    fn encoding_messages_with_no_payload() {
+        assert_eq!([0, 0, 0, 1, 0], Message::Choke.encode().as_ref());
+        assert_eq!([0, 0, 0, 1, 1], Message::Unchoke.encode().as_ref());
+        assert_eq!([0, 0, 0, 1, 2], Message::Interested.encode().as_ref());
+        assert_eq!([0, 0, 0, 1, 3], Message::NotInterested.encode().as_ref());
+    }
+
+    #[test]
+    fn encoding_request_messages() {
+        let message = Message::Request {
+            index: 3,
+            offset: 4,
+            length: 16384,
+        };
+        let expected_bytes = [0, 0, 0, 13, 6, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 64, 0];
+
+        assert_eq!(expected_bytes, message.encode().as_ref())
+    }
+
+    #[test]
+    fn encoding_message_with_bitfield() {
+        let bitfield: Bytes = [0b10100011, 0b10100000].as_ref().into();
+        let message = Message::Bitfield(bitfield.clone());
+        let mut expected_bytes = vec![0, 0, 0, 3, 5];
+        expected_bytes.extend_from_slice(bitfield.as_ref());
+        assert_eq!(expected_bytes, message.encode().as_ref());
+    }
+
+    #[test]
+    fn encoding_message_with_piece() {
+        let piece: Bytes = [
+            0b10100011, 0b10100000, 0b10100011, 0b10100000, 0b10100011, 0b10100000,
+        ]
+        .as_ref()
+        .into();
+        let message = Message::Piece {
+            index: 3,
+            offset: 4,
+            data: piece.clone(),
+        };
+
+        let mut expected_bytes = vec![0, 0, 0, 15, 7, 0, 0, 0, 3, 0, 0, 0, 4];
+        expected_bytes.extend_from_slice(piece.as_ref());
+
+        assert_eq!(expected_bytes, message.encode().as_ref());
     }
 }
