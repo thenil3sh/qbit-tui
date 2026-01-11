@@ -121,7 +121,7 @@ impl Session {
         };
         if i_need_piece {
             self.am_interested = true;
-            self.connection.send_interested().await?;
+            self.connection.send(Message::Interested).await?;
         }
         Ok(())
     }

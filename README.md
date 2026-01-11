@@ -7,9 +7,10 @@
 - [ ] don't give up, please
 - [ ] make error for every module
 - [ ] more tests!!!
-- [ ] `(new)` Implement serializer for Message
-- [ ] `(new)` prepare and send `Request Message`
-- [ ] `(new)` and prolly test them too
+- [ ] `(new)` Implement Debug for Messages, manually
+- [x] `(new)` Implement serializer for Message
+- [x] `(new)` prepare and send `Request Message`
+- [x] `(new)` and prolly test them too
 - [ ] **`peer::session`:** Implement the main `run()` loop for message processing and lifecycle management.
 - [ ] **`peer::session`:** Implement download logic in `peer_has_something_i_want` and `request_block`.
 - [ ] **`peer::session`:** Implement upload logic to handle `Request` messages and unchoke peers.

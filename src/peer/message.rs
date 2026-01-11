@@ -2,9 +2,11 @@ use crate::peer::{id, message, Connection};
 use bytes::{BufMut, Bytes, BytesMut};
 use serde::{de::Unexpected, Serialize};
 use sha1::digest::typenum::bit;
-use std::io::{self, Error, ErrorKind, Read};
+use std::{
+    fmt::{write, Debug},
+    io::{self, Error, ErrorKind, Read},
+};
 
-#[derive(Debug)]
 pub enum Message {
     KeepAlive,
     Choke,
@@ -27,8 +29,42 @@ pub enum Message {
     UnexpectedId(u8),
 }
 
+impl Debug for Message {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Message::KeepAlive => f.write_str("KeepAlive"),
+            Message::Choke => f.write_str("Choke"),
+            Message::Unchoke => f.write_str("Unchoke"),
+            Message::Bitfield(x) => f.debug_set().entries(x.as_ref().iter()).finish(),
+            Message::Interested => f.write_str("Interested"),
+            Message::NotInterested => f.write_str("Not Interested"),
+            Message::Request {
+                index,
+                offset,
+                length,
+            } => f
+                .debug_struct("Piece")
+                .field("index", index)
+                .field("offset", offset)
+                .field("length", length)
+                .finish(),
+            Message::Piece {
+                index,
+                offset,
+                data,
+            } => f
+                .debug_struct("Piece")
+                .field("index", index)
+                .field("offset", offset)
+                .field("data", data)
+                .finish(),
+            Message::UnexpectedId(i) => f.write_str(&format!("Unexpected Id : {i}")),
+        }
+    }
+}
+
 impl Message {
-    pub(crate) fn decode(id: u8, payload: Bytes) -> io::Result<Self> {
+    pub fn decode(id: u8, payload: Bytes) -> io::Result<Self> {
         match id {
             0 => Ok(Self::Choke),
             1 => Ok(Self::Unchoke),
@@ -144,11 +180,8 @@ impl Message {
 
 #[cfg(test)]
 mod test {
-    use std::io::Read;
-
     use crate::peer::Message;
     use bytes::Bytes;
-    use sha1::digest::typenum::bit;
 
     #[test]
     fn parsing_valid_message() {
@@ -157,6 +190,7 @@ mod test {
 
     #[test]
     fn parsing_a_message() {
+        todo!();
         let message = Message::Bitfield(b"".as_ref().into());
     }
 

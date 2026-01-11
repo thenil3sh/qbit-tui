@@ -52,10 +52,13 @@ impl Connection {
         Ok(buffer.freeze())
     }
 
-    pub(crate) async fn send_interested(&mut self) -> Result<(), session::Error> {
-        todo!()
+    /// Writes the encoded message to the TCP stream
+    pub(crate) async fn send(&mut self, message : Message) -> Result<(), session::Error> {
+        self.stream.write_all(&message.encode()).await?;
+        Ok(())
     }
 }
+
 
 #[cfg(test)]
 mod tests {}
