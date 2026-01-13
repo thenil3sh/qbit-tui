@@ -6,7 +6,7 @@ pub use response::Response;
 
 
 
-pub fn get_url(torrent : Torrent) -> String {
+pub fn get_url(torrent : &Torrent) -> String {
     format!(
         "{}?info_hash={}&peer_id={}&port={}&uploaded={}&downloaded={}&left={}",
         torrent.announce,

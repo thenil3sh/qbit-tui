@@ -11,7 +11,6 @@ use crate::{
 
 use bytes::Bytes;
 use std::{
-    io::ErrorKind,
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -32,7 +31,10 @@ use tokio::{sync::Mutex, time::timeout};
 use Message::*;
 
 impl Session {
-    async fn run(&mut self) -> Result<(), Error> {
+    pub fn new(connection : Connection, torrent_info : torrent::Info, state : torrent::State) {
+        
+    }
+    pub async fn run(&mut self) -> Result<(), Error> {
         loop {
             let time_left = Duration::from_secs(120) - (Instant::now() - self.last_active);
             let timeout = timeout(time_left, self.connection.read_message()).await;
@@ -83,7 +85,7 @@ impl Session {
                 Ok(Event::UnchokedMe)
             }
             Request { index, offset, length } => {
-                todo!()
+                todo!("Can't handle requests yet")
             }
             Interested => {
                 self.is_interested = true;

@@ -12,6 +12,7 @@ use crate::peer::SessionError;
 use crate::peer::{session, Handshake, Message, Peer};
 
 #[allow(unused)] ///////////////////// For nowww
+#[derive(Debug)]
 pub struct Connection {
     peer: Peer,
     stream: TcpStream,

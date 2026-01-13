@@ -9,7 +9,7 @@ use qbit::{
 async fn main() {
     let torrent = Metadata::from_file("test/debian.torrent").unwrap();
 
-    let url = tracker::get_url(torrent);
+    let url = tracker::get_url(&torrent);
 
     let response = reqwest::get(url)
         .await

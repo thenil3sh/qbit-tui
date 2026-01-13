@@ -190,7 +190,6 @@ mod test {
 
     #[test]
     fn parsing_a_message() {
-        todo!();
         let message = Message::Bitfield(b"".as_ref().into());
     }
 

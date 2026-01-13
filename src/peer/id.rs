@@ -11,8 +11,8 @@ pub static PEER_ID : LazyLock<Id> = LazyLock::new(|| {
     Id::new()
 });
 
-#[derive(Deserialize, Copy, Clone)]
-#[cfg_attr(test, derive(PartialEq, Debug))]
+#[derive(Deserialize, Copy, Clone, Debug)]
+#[cfg_attr(test, derive(PartialEq))]
 pub struct Id([u8;20]);
 
 impl Id {

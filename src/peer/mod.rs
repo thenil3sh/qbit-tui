@@ -11,7 +11,7 @@ use serde::Deserialize;
 pub use handshake::Handshake;
 pub use connection::Connection as Connection;
 pub use message::*;
-pub(crate) use session::Session as PeerSession;
+pub use session::Session as PeerSession;
 pub(crate) use session::Event as SessionEvent;
 pub(crate) use session::Error as SessionError;
 
@@ -21,8 +21,8 @@ use crate::peer::id::Id;
 /// https://www.bittorrent.org/beps/bep_0003.html#peer-protocol:~:text=protocol%20as%20well.-,peer%20protocol,-BitTorrent%27s%20peer%20protocol
 
 
-#[derive(Copy, Clone, Deserialize)]
-#[cfg_attr(test, derive(PartialEq, Debug))]
+#[derive(Copy, Clone, Deserialize, Debug)]
+#[cfg_attr(test, derive(PartialEq))]
 pub struct Peer {
     pub ip : Ipv4Addr,
     pub port : u16,
