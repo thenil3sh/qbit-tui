@@ -7,10 +7,12 @@
 - [ ] don't give up, please
 - [ ] make error for every module
 - [ ] more tests!!!
-- [ ] `(new)` Implement Debug for Messages, manually
-- [x] `(new)` Implement serializer for Message
-- [x] `(new)` prepare and send `Request Message`
-- [x] `(new)` and prolly test them too
+- [ ] `(new)` Actually test your api, lmao
+- [ ] `(new)` Check if peer's sending/asking for a valid piece
+- [x] Implement Debug for Messages, manually
+- [x] Implement serializer for Message
+- [x] prepare and send `Request Message`
+- [x] and prolly test them too
 - [ ] **`peer::session`:** Implement the main `run()` loop for message processing and lifecycle management.
 - [ ] **`peer::session`:** Implement download logic in `peer_has_something_i_want` and `request_block`.
 - [ ] **`peer::session`:** Implement upload logic to handle `Request` messages and unchoke peers.

@@ -12,7 +12,7 @@ async fn main() {
     let torrent = Arc::new(
         Metadata::from_file("test/debian.torrent").expect("Fucking failed at reading torrent"),
     );
-    let state = Arc::new(Mutex::new(State::new()));
+    // let state = Arc::new(Mutex::new(State::new()));
     let peers: tracker::Response = tracker::fetch_tracker_bytes(get_url(&torrent))
         .await
         .expect("Failed fetching tracker")
@@ -55,7 +55,7 @@ async fn main() {
     };
     for i in connection_list {
         tokio::spawn(async move {
-            let session = PeerSession::new(i, torrent.clone().info, state);
+            // let session = PeerSession::new(i, torrent.clone().info, state);
         });
     }
 }
