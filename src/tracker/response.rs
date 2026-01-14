@@ -1,10 +1,18 @@
-use crate::tracker::peer::Peer;
+use std::{fs, io};
 
-#[derive(serde::Deserialize)]
-#[cfg_attr(test, derive(PartialEq, Debug))]
+use crate::{torrent, tracker::peer::Peer};
+
+#[derive(serde::Deserialize, Debug)] //////////////////////////////////////// only now
+#[cfg_attr(test, derive(PartialEq))]
 pub struct Response {
     pub interval: u32,
     pub peers: Vec<Peer>,
+}
+
+impl Response {
+    fn new(torrent : &torrent::Metadata) {
+
+    }
 }
 
 impl TryFrom<&[u8]> for Response {

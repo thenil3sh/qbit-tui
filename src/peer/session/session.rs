@@ -18,7 +18,7 @@ use std::{
 pub struct Session {
     connection: Connection,
     last_active: Instant,
-    torrent_info: Arc<torrent::Info>,
+    torrent_info: Arc<torrent::Metadata>,
     state: Arc<Mutex<torrent::State>>,
     is_choking: bool,
     is_interested: bool,
@@ -31,9 +31,24 @@ use tokio::{sync::Mutex, time::timeout};
 use Message::*;
 
 impl Session {
-    pub fn new(connection : Connection, torrent_info : torrent::Info, state : torrent::State) {
-        
+    pub fn new(
+        connection: Connection,
+        torrent_info: Arc<torrent::Metadata>,
+        state: Arc<Mutex<torrent::State>>,
+    ) -> Self {
+        Self {
+            connection,
+            last_active: Instant::now(),
+            torrent_info,
+            state,
+            is_choking: true,
+            is_interested: false,
+            am_choking: true,
+            am_interested: false,
+            bit_field: None,
+        }
     }
+
     pub async fn run(&mut self) -> Result<(), Error> {
         loop {
             let time_left = Duration::from_secs(120) - (Instant::now() - self.last_active);
@@ -45,7 +60,7 @@ impl Session {
                 timeout.unwrap()?
             };
             self.last_active = Instant::now();
-
+            eprintln!("Got message : {message:?}");
             let event = self.handle_message(message).await?;
 
             match event {
@@ -61,7 +76,7 @@ impl Session {
                     data,
                 } => self.handle_piece(index, offset, data).await?,
                 Event::KeepAlive => {}
-                x => todo!("Unimplemented event recieved : {x:?}"),
+                x => eprintln!("Unimplemented event recieved : {x:?}"),
             }
         }
     }
@@ -84,7 +99,11 @@ impl Session {
                 self.is_choking = false;
                 Ok(Event::UnchokedMe)
             }
-            Request { index, offset, length } => {
+            Request {
+                index,
+                offset,
+                length,
+            } => {
                 todo!("Can't handle requests yet")
             }
             Interested => {

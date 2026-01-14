@@ -35,7 +35,7 @@ impl Debug for Message {
             Message::KeepAlive => f.write_str("KeepAlive"),
             Message::Choke => f.write_str("Choke"),
             Message::Unchoke => f.write_str("Unchoke"),
-            Message::Bitfield(x) => f.debug_set().entries(x.as_ref().iter()).finish(),
+            Message::Bitfield(x) => f.write_str("Bitfield [...]"),
             Message::Interested => f.write_str("Interested"),
             Message::NotInterested => f.write_str("Not Interested"),
             Message::Request {

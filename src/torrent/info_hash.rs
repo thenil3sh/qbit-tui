@@ -3,7 +3,7 @@ use ratatui::style::palette::tailwind;
 use serde::Deserialize;
 
 
-#[derive(Default, Deserialize)]
+#[derive(Default, Deserialize, Clone, Copy)]
 pub struct InfoHash {
     hash: [u8; 20],
 }
@@ -29,6 +29,10 @@ impl Debug for InfoHash {
 impl InfoHash {
     pub fn to_url_encoded(&self) -> String {
         self.as_ref().iter().map(|x| format!("%{x:02X}")).collect()
+    }
+
+    pub fn to_hex_lower(&self) -> String {
+        self.as_ref().iter().map(|x| format!("{x:x}")).collect()
     }
 }
 

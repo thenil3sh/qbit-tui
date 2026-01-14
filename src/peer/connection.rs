@@ -48,6 +48,7 @@ impl Connection {
 
     async fn scrap_payload(stream: &mut TcpStream, len: usize) -> io::Result<Bytes> {
         let mut buffer = BytesMut::with_capacity(len - 1);
+        buffer.resize(len - 1, 0);
         stream.read_exact(&mut buffer).await?;
 
         Ok(buffer.freeze())
@@ -56,6 +57,7 @@ impl Connection {
     /// Writes the encoded message to the TCP stream
     pub(crate) async fn send(&mut self, message : Message) -> Result<(), session::Error> {
         self.stream.write_all(&message.encode()).await?;
+        println!("Sent {message:?}");
         Ok(())
     }
 }

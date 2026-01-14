@@ -12,7 +12,8 @@ async fn main() {
     let torrent = Arc::new(
         Metadata::from_file("test/debian.torrent").expect("Fucking failed at reading torrent"),
     );
-    // let state = Arc::new(Mutex::new(State::new()));
+    // let torrent_info = Arc::new(torrent.info.clone());
+    let state: Arc<Mutex<State>> = Arc::new(Mutex::new(torrent.as_ref().try_into().unwrap()));
     let peers: tracker::Response = tracker::fetch_tracker_bytes(get_url(&torrent))
         .await
         .expect("Failed fetching tracker")
@@ -53,9 +54,24 @@ async fn main() {
         let mut guard = connection_list.lock().await;
         std::mem::take(&mut *guard)
     };
+
+    let mut join_set = JoinSet::new();
+    let count = Arc::new(Mutex::new(0usize));
     for i in connection_list {
-        tokio::spawn(async move {
-            // let session = PeerSession::new(i, torrent.clone().info, state);
+        join_set.spawn({
+            let state = state.clone();
+            let torrent = torrent.clone();
+            let count = count.clone();
+            async move {
+                let mut session = PeerSession::new(i, torrent, state);
+                if let Err(x) = session.run().await {
+                    eprintln!("Session Error {x}");
+                }
+                *count.lock().await += 1;
+            }
         });
     }
+
+    join_set.join_all().await;
+    eprintln!("All connections closed, {}, failed", count.lock().await);
 }
