@@ -12,12 +12,24 @@ pub struct State {
 
     pub(crate) bit_field: Vec<u8>,
     in_flight: HashSet<u32>,
-    num_pieces: usize,
+    num_pieces: u32,
 }
 
 impl State {
     fn new() -> Self {
         Default::default()
+    }
+    
+    pub(crate) fn remove_in_flight(&mut self, piece : u32) {
+        self.in_flight.remove(&piece);
+    }
+    
+    pub(crate) fn add_in_flight(&mut self, piece : u32) {
+        self.in_flight.insert(piece);
+    }
+    
+    pub fn is_in_flight(&self, piece : u32) -> bool {
+        self.in_flight.contains(&piece)
     }
 
     fn mark_piece_complete(&mut self, index: u32) {
@@ -48,7 +60,7 @@ impl State {
         self.bit_field[byte_index] & cmp_byte != 0
     }
 
-    fn num_pieces(&self) -> usize {
+    pub fn num_pieces(&self) -> u32 {
         return self.num_pieces;
     }
 
@@ -60,7 +72,7 @@ impl State {
         let index = self.num_pieces / 8;
         let remainder = self.num_pieces % 8;
 
-        if self.bit_field[..index].iter().any(|x| *x != 0xFF) {
+        if self.bit_field[..index as usize].iter().any(|x| *x != 0xFF) {
             return false;
         }
         if remainder == 0 {
@@ -87,7 +99,7 @@ impl TryFrom<&Metadata> for State {
         Ok(Self {
             downloaded,
             in_flight,
-            num_pieces,
+            num_pieces : num_pieces as u32,
             bit_field,
         })
     }
@@ -192,7 +204,7 @@ mod tests {
             state.mark_piece_complete(2);
         }
 
-        assert!(state.downloaded <= state.num_pieces);
+        assert!(state.downloaded <= state.num_pieces as usize);
     }
 
     #[test]

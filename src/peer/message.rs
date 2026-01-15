@@ -1,9 +1,10 @@
-use crate::peer::{id, message, Connection};
+use crate::peer::{Connection, id, message};
 use bytes::{BufMut, Bytes, BytesMut};
-use serde::{de::Unexpected, Serialize};
+use serde::{Serialize, de::Unexpected};
 use sha1::digest::typenum::bit;
 use std::{
-    fmt::{write, Debug},
+    alloc::handle_alloc_error,
+    fmt::{Debug, write},
     io::{self, Error, ErrorKind, Read},
 };
 
@@ -13,7 +14,7 @@ pub enum Message {
     Unchoke,
     Interested,
     NotInterested,
-    // Have,
+    Have(u32),
     Bitfield(Bytes),
     Request {
         index: u32,
@@ -35,15 +36,16 @@ impl Debug for Message {
             Message::KeepAlive => f.write_str("KeepAlive"),
             Message::Choke => f.write_str("Choke"),
             Message::Unchoke => f.write_str("Unchoke"),
-            Message::Bitfield(x) => f.write_str("Bitfield [...]"),
+            Message::Bitfield(_) => f.write_str("Bitfield [...]"),
             Message::Interested => f.write_str("Interested"),
+            Message::Have(x) => f.debug_tuple("Have").field(x).finish(),
             Message::NotInterested => f.write_str("Not Interested"),
             Message::Request {
                 index,
                 offset,
                 length,
             } => f
-                .debug_struct("Piece")
+                .debug_struct("Request")
                 .field("index", index)
                 .field("offset", offset)
                 .field("length", length)
@@ -53,10 +55,10 @@ impl Debug for Message {
                 offset,
                 data,
             } => f
-                .debug_struct("Piece")
+                .debug_struct("\x1b[32mPiece\x1b[0m")
                 .field("index", index)
                 .field("offset", offset)
-                .field("data", data)
+                .field("data", &"[...]")
                 .finish(),
             Message::UnexpectedId(i) => f.write_str(&format!("Unexpected Id : {i}")),
         }
@@ -70,12 +72,28 @@ impl Message {
             1 => Ok(Self::Unchoke),
             2 => Ok(Self::Interested),
             3 => Ok(Self::NotInterested),
-            4 => todo!("`Have` isn't implemented yet"),
+            4 => Self::handle_have(payload),
             5 => Self::handle_bitfield(payload),
             6 => todo!("`Request`, isn't implemented yet"),
             7 => Self::handle_piece(payload),
             8 => todo!("`Cancel`, isn't implemented yet"),
             _ => Err(Error::new(ErrorKind::InvalidData, "Invalid Id")),
+        }
+    }
+
+    fn handle_have(payload: Bytes) -> io::Result<Self> {
+        if payload.is_empty() || payload.len() != 4 {
+            Err(Error::new(
+                ErrorKind::InvalidData,
+                "Empty payload, expected Have Index",
+            ))
+        } else {
+            let index = u32::from_be_bytes(
+                payload[..4]
+                    .try_into()
+                    .expect("Failed to parse u32 index for Have Message"),
+            );
+            Ok(Self::Have(index))
         }
     }
 
@@ -121,6 +139,11 @@ impl Message {
                 bytes.put_u32(1);
                 bytes.put_u8(3);
             }
+            Message::Have(x) => {
+                bytes.put_u32(5);
+                bytes.put_u8(4);
+                bytes.put_u32(*x);
+            }
             Message::Bitfield(bitfield) => {
                 bytes.put_u32(bitfield.len() as u32 + 1);
                 bytes.put_u8(5);
@@ -161,6 +184,7 @@ impl Message {
     fn encode_length(&self) -> usize {
         match self {
             Message::Choke | Message::Unchoke | Message::Interested | Message::NotInterested => 5,
+            Message::Have(_) => 9,
             Message::Bitfield(bitfield) => 5 + bitfield.len(),
             Message::Request {
                 index: _,

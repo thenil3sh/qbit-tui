@@ -14,10 +14,9 @@ async fn main() {
     );
     // let torrent_info = Arc::new(torrent.info.clone());
     let state: Arc<Mutex<State>> = Arc::new(Mutex::new(torrent.as_ref().try_into().unwrap()));
-    let peers: tracker::Response = tracker::fetch_tracker_bytes(get_url(&torrent))
+    let peers: tracker::Response = tracker::load_cache_or_fetch_tracker(&torrent)
         .await
         .expect("Failed fetching tracker")
-        .as_ref()
         .try_into()
         .expect("Failed parsing tracker's response into struct");
 

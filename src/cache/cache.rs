@@ -21,7 +21,7 @@ pub struct Cache {
 }
 
 impl Cache {
-    pub fn new(r#type: CacheType, info_hash: InfoHash) -> Self {
+    pub fn new(r#type: CacheType, info_hash: InfoHash) -> io::Result<Self> {
         let cache_dir = Cache::directory().join("qbit-tui");
         let path = match r#type {
             CacheType::TrackerResponse => cache_dir
@@ -33,8 +33,8 @@ impl Cache {
             r#type,
             path,
         };
-        cache.load_or_create();
-        cache
+        cache.load_or_create()?;
+        Ok(cache)
     }
 
     pub fn len(&self) -> u64 {

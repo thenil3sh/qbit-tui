@@ -7,6 +7,7 @@ pub enum Event {
     UnchokedMe,
     PeerInterested,
     PieceRecieved { index : u32, offset : u32, data : Bytes },
+    Have(u32),
     KeepAlive,
     PeerNotInterested
 }

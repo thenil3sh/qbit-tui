@@ -9,7 +9,6 @@ use crate::{
     cache::{Cache, CacheType},
     peer, tracker,
 };
-pub mod cache;
 pub mod response;
 use crate::torrent::Metadata as Torrent;
 use anyhow::bail;
@@ -30,7 +29,7 @@ pub fn get_url(torrent: &Torrent) -> String {
 }
 
 pub async fn load_cache_or_fetch_tracker(torrent: &Torrent) -> anyhow::Result<Response> {
-    let cache = Cache::new(CacheType::TrackerResponse, torrent.info_hash);
+    let cache = Cache::new(CacheType::TrackerResponse, torrent.info_hash)?;
     if cache.is_empty() {
         let bytes = fetch_tracker_bytes(get_url(torrent)).await?;
         let response: tracker::Response = bendy::serde::from_bytes(&bytes)?;
@@ -51,7 +50,7 @@ pub async fn load_cache_or_fetch_tracker(torrent: &Torrent) -> anyhow::Result<Re
 }
 
 pub async fn load_cache_or_fetch_trackerr(torrent: &Torrent) -> anyhow::Result<Response> {
-    let cache = Cache::new(CacheType::TrackerResponse, torrent.info_hash);
+    let cache = Cache::new(CacheType::TrackerResponse, torrent.info_hash)?;
 
     if !cache.is_empty() {
         let bytes = cache.read();
