@@ -1,5 +1,4 @@
 use std::{fmt::{Debug, Display}, ops::Deref};
-use ratatui::style::palette::tailwind;
 use serde::Deserialize;
 
 

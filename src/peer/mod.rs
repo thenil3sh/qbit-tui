@@ -12,7 +12,6 @@ pub use handshake::Handshake;
 pub use connection::Connection as Connection;
 pub use message::*;
 pub use session::Session as PeerSession;
-pub(crate) use session::Event as SessionEvent;
 pub(crate) use session::Error as SessionError;
 
 use crate::peer::id::Id;

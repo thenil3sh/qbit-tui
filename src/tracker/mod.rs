@@ -1,9 +1,3 @@
-use std::{
-    fs::{self, File},
-    io,
-    path::Path,
-    time::{self, UNIX_EPOCH},
-};
 
 use crate::{
     cache::{Cache, CacheType},
@@ -11,7 +5,6 @@ use crate::{
 };
 pub mod response;
 use crate::torrent::Metadata as Torrent;
-use anyhow::bail;
 use bytes::Bytes;
 pub use response::Response;
 

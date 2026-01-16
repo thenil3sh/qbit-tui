@@ -1,11 +1,7 @@
-use crate::peer::{Connection, id, message};
 use bytes::{BufMut, Bytes, BytesMut};
-use serde::{Serialize, de::Unexpected};
-use sha1::digest::typenum::bit;
 use std::{
-    alloc::handle_alloc_error,
-    fmt::{Debug, write},
-    io::{self, Error, ErrorKind, Read},
+    fmt::Debug,
+    io::{self, Error, ErrorKind},
 };
 
 pub enum Message {

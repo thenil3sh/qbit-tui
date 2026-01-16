@@ -2,12 +2,11 @@ use std::{
     env,
     fs::{self, File},
     io::{self, Read, Write},
-    path::{self, Path, PathBuf},
-    time::{SystemTime, UNIX_EPOCH},
+    path::PathBuf,
+    time::SystemTime,
 };
 
 use bytes::{Bytes, BytesMut};
-use sha1::digest::typenum::TypeArray;
 
 use crate::{
     cache::{self, CacheType},

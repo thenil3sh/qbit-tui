@@ -1,14 +1,16 @@
-# qbit
+# qbit-tui
 
 # ToDo
 - [x] Add todo, lmao
 - [x] Deserialize tracker's response into url
 - [ ] kindly, explore ratatui
 - [ ] don't give up, please
-- [ ] make error for every module
+- [-] `(new)` make error for every module
+- [ ] `(new)` Handle pieces sent by peers
+- [ ] `(new)` Limit active users, as configured
 - [ ] more tests!!!
-- [ ] `(new)` Actually test your api, lmao
-- [ ] `(new)` Check if peer's sending/asking for a valid piece
+- [ ] Actually test your api, lmao
+- [ ] Check if peer's sending/asking for a valid piece
 - [x] Implement Debug for Messages, manually
 - [x] Implement serializer for Message
 - [x] prepare and send `Request Message`

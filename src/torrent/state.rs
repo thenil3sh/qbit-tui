@@ -1,10 +1,8 @@
 use crate::torrent::Metadata;
-use std::{collections::HashSet, hash::Hash};
+use std::collections::HashSet;
 
-use bytes::Bytes;
-use sha1::digest::typenum::bit;
 
-use crate::torrent::{self, metadata};
+use crate::torrent::{self};
 
 #[derive(Default)]
 pub struct State {

@@ -1,3 +1,5 @@
+use crate::peer::session::piece;
+
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("Protocol violation")]
@@ -8,6 +10,8 @@ pub enum Error {
     TimeOut,
     #[error(transparent)]
     Io(#[from] std::io::Error),
+    #[error(transparent)]
+    PieceError(#[from] piece::Error)
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

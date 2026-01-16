@@ -1,14 +1,11 @@
 use bytes::Bytes;
 use bytes::BytesMut;
 use std::net::{IpAddr::V4, SocketAddr};
-use std::time::Duration;
-use tokio::time::timeout;
 use tokio::{
     io::{self, AsyncReadExt, AsyncWriteExt},
     net::TcpStream,
 };
 
-use crate::peer::SessionError;
 use crate::peer::{session, Handshake, Message, Peer};
 
 #[allow(unused)] ///////////////////// For nowww

@@ -1,9 +1,9 @@
 use std::{sync::Arc, time::Duration};
 
 use qbit::{
-    peer::{Connection, Handshake, PeerSession},
-    torrent::{self, Metadata, State},
-    tracker::{self, get_url},
+    peer::{Handshake, PeerSession},
+    torrent::{Metadata, State},
+    tracker::{self},
 };
 use tokio::{sync::Mutex, task::JoinSet, time::timeout};
 
