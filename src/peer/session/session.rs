@@ -4,6 +4,7 @@ use crate::{
         session::{
             self, Error,
             Event::{self, *},
+            Piece,
         },
     },
     torrent,
@@ -17,10 +18,11 @@ use std::{
 };
 
 pub struct Session {
+    // commit_tx : mpsc::Sender<Committer>
     connection: Connection,
     last_active: Instant,
-    torrent_info: Arc<torrent::Metadata>,
-    current_piece: Option<u32>,
+    torrent_info: Arc<torrent::Info>,
+    current_piece: Option<Piece>,
     current_offset: u32,
     state: Arc<Mutex<torrent::State>>,
     is_choking: bool,
@@ -37,7 +39,7 @@ use tokio::{io, sync::Mutex, time::timeout};
 impl Session {
     pub fn new(
         connection: Connection,
-        torrent_info: Arc<torrent::Metadata>,
+        torrent_info: Arc<torrent::Info>,
         state: Arc<Mutex<torrent::State>>,
     ) -> Self {
         Self {
@@ -88,13 +90,23 @@ impl Session {
 
     async fn handle_choked_me(&mut self) -> io::Result<()> {
         self.is_choking = true;
-        if let Some(piece) = self.current_piece {
-            self.state.lock().await.remove_in_flight(piece);
+        if let Some(piece) = self.current_piece.as_ref() {
+            self.state.lock().await.remove_in_flight(piece.index());
+            todo!("Need some rework here")
         }
         Ok(())
     }
 
     async fn handle_piece(&mut self, index: u32, offset: u32, data: Bytes) -> Result<(), Error> {
+        if self.current_piece.is_none() {
+            return Err(Error::ProtocolViolation);
+        }
+        let piece=  self.current_piece.as_mut().unwrap();
+        piece.update_buffer(index, offset, data.as_ref())?;
+
+        if piece.is_complete() {
+            todo!("Commit!!!")
+        }
         Ok(())
     }
 
@@ -159,7 +171,7 @@ impl Session {
                 self.is_interested = true;
                 Ok(Event::PeerInterested)
             }
-            Piece {
+            Message::Piece {
                 index,
                 offset,
                 data,
@@ -178,7 +190,7 @@ impl Session {
     }
 
     /// Looks for a piece in peer's bitfield, if there's anything interesting, it'll reserve it, then return the index to user
-    /// Else it'll 
+    /// Else it responds with None
     async fn reserve_interesting_piece(&self) -> Option<u32> {
         let mut state = self.state.lock().await;
         for (byte_idx, (peer, mine)) in self
@@ -226,6 +238,7 @@ impl Session {
         if self.am_interested
             && let Some(index) = self.reserve_interesting_piece().await
         {
+            self.current_piece = Some(Piece::new(index, self.torrent_info.piece_len(index)));
             self.state.lock().await.add_in_flight(index);
             self.connection
                 .send(Message::Request {

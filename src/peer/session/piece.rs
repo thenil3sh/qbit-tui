@@ -4,6 +4,8 @@ use std::{
     sync::Arc,
 };
 
+use bytes::{Bytes, BytesMut};
+use rand::Fill;
 use tokio::sync::Mutex;
 
 use sha1::{Digest, Sha1};
@@ -23,11 +25,11 @@ pub struct Piece {
     on_fly: HashSet<u32>,
     received: HashSet<u32>,
 
-    buffer: Vec<u8>,
+    buffer: BytesMut,
 }
 
 impl Piece {
-    fn new(index: u32, piece_len: u32) -> Self {
+    pub fn new(index: u32, piece_len: u32) -> Self {
         let mut offset = 0;
         let max_block_len = 16384;
         let mut pending = VecDeque::with_capacity((piece_len / max_block_len + 1) as usize);
@@ -39,6 +41,8 @@ impl Piece {
             }
             offset += max_block_len;
         }
+        let mut buffer = BytesMut::with_capacity(piece_len as usize);
+        buffer.fill(0);
         Self {
             index,
             max_block_len,
@@ -47,15 +51,19 @@ impl Piece {
             on_fly: HashSet::new(),
             received: HashSet::new(),
 
-            buffer: vec![0; piece_len as usize],
+            buffer,
         }
+    }
+    
+    pub fn index(&self) -> u32 {
+        self.index
     }
 
     fn total_blocks(&self) -> u32 {
         (self.piece_len + self.max_block_len - 1) / self.max_block_len
     }
 
-    fn next_block(&mut self) -> Option<Message> {
+    pub fn next_block(&mut self) -> Option<Message> {
         if let Some(Block { offset, length }) = self.pending.pop_front() {
             self.on_fly.insert(offset);
             return Some(Message::Request {
@@ -67,11 +75,20 @@ impl Piece {
         None
     }
 
-    fn has_pending_req(&self) -> bool {
+    pub fn commit() -> piece::Result<()> {
+        todo!("Bro fr you think, it'll work magically");
+        Ok(())
+    }
+
+    pub fn can_request_more(&self) -> bool {
+        self.on_fly.len() < 4
+    }
+
+    pub fn has_pending_req(&self) -> bool {
         !self.pending.is_empty()
     }
 
-    fn progress(&self) -> (usize, usize) {
+    pub fn progress(&self) -> (usize, usize) {
         (self.received.len(), self.total_blocks() as usize)
     }
 
@@ -79,11 +96,11 @@ impl Piece {
         self.on_fly.len()
     }
 
-    fn pending_count(&self) -> usize {
+    pub fn pending_count(&self) -> usize {
         self.pending.len()
     }
 
-    fn update_buffer(&mut self, index: u32, offset: u32, data: &[u8]) -> piece::Result<()> {
+    pub fn update_buffer(&mut self, index: u32, offset: u32, data: &[u8]) -> piece::Result<()> {
         let expected_len = if offset + self.max_block_len > self.piece_len {
             self.piece_len - offset
         } else {
@@ -106,7 +123,7 @@ impl Piece {
         Ok(())
     }
 
-    fn rebuild_pending(&mut self) {
+    pub fn rebuild_pending(&mut self) {
         self.pending.clear();
         let mut offset = 0;
         while offset < self.piece_len {
@@ -116,34 +133,31 @@ impl Piece {
         }
     }
 
-    fn reset(&mut self) {
-        self.buffer = vec![0u8; self.piece_len as usize];
+    pub fn reset(&mut self) {
+        self.buffer = BytesMut::with_capacity(self.piece_len as usize);
+        self.buffer.fill(0);
         self.on_fly.clear();
         self.pending = VecDeque::with_capacity(self.total_blocks() as usize);
         self.received.clear();
         self.rebuild_pending();
     }
 
-    fn verify(&self, expected_hash: &[u8; 20]) -> bool {
+    pub fn verify(&self, expected_hash: &[u8; 20]) -> bool {
         let mut hasher = Sha1::new();
         hasher.update(&self.buffer);
         let result = hasher.finalize();
 
-        let start = (self.index * 20) as usize;
-        let end = start + 20;
         return *expected_hash == *result;
     }
 
-    fn data(&self) -> &[u8] {
+    pub fn data(&self) -> &[u8] {
         &self.buffer
     }
 
-    fn is_complete(&self) -> bool {
+    pub fn is_complete(&self) -> bool {
         let expected_blocks = self.total_blocks();
         return expected_blocks == self.received.len() as u32 && self.on_fly.is_empty();
     }
-
-    fn piece_length_from() {}
 }
 
 type Result<T> = std::result::Result<T, Error>;

@@ -7,7 +7,6 @@ use crate::torrent::{self};
 #[derive(Default)]
 pub struct State {
     downloaded: usize,
-
     pub(crate) bit_field: Vec<u8>,
     in_flight: HashSet<u32>,
     num_pieces: u32,

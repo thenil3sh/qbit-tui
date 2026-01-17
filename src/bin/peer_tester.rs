@@ -2,7 +2,7 @@ use std::{sync::Arc, time::Duration};
 
 use qbit::{
     peer::{Handshake, PeerSession},
-    torrent::{Metadata, State},
+    torrent::{Metadata, State, self},
     tracker::{self},
 };
 use tokio::{sync::Mutex, task::JoinSet, time::timeout};
@@ -12,7 +12,7 @@ async fn main() {
     let torrent = Arc::new(
         Metadata::from_file("test/debian.torrent").expect("Fucking failed at reading torrent"),
     );
-    // let torrent_info = Arc::new(torrent.info.clone());
+    let torrent_info: Arc<torrent::Info> = Arc::new(torrent.info_byte().try_into().unwrap());
     let state: Arc<Mutex<State>> = Arc::new(Mutex::new(torrent.as_ref().try_into().unwrap()));
     let peers: tracker::Response = tracker::load_cache_or_fetch_tracker(&torrent)
         .await
@@ -59,10 +59,10 @@ async fn main() {
     for i in connection_list {
         join_set.spawn({
             let state = state.clone();
-            let torrent = torrent.clone();
+            let torrent_info = torrent_info.clone();
             let count = count.clone();
             async move {
-                let mut session = PeerSession::new(i, torrent, state);
+                let mut session = PeerSession::new(i, torrent_info, state);
                 if let Err(x) = session.run().await {
                     eprintln!("Session Error {x}");
                 }

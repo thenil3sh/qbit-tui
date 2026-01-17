@@ -38,6 +38,10 @@ impl Metadata {
 
         Ok(metadata)
     }
+
+    pub fn info_byte(&self) -> &[u8] {
+        self.info_byte.as_ref()
+    }
     
     fn generate_info_hash(buffer: &[u8]) -> Result<[u8; 20], anyhow::Error> {
         let mut hasher = Sha1::new();
