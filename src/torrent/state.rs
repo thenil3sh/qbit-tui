@@ -29,7 +29,7 @@ impl State {
         self.in_flight.contains(&piece)
     }
 
-    fn mark_piece_complete(&mut self, index: u32) {
+    pub(crate) fn mark_piece_complete(&mut self, index: u32) {
         let piece = index as usize;
         let byte = piece / 8;
         let bit = piece % 8;
