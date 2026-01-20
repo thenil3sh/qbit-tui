@@ -1,11 +1,11 @@
 # qbit-tui
 A bittorrent client, implementated in Rust.
 
-> [!WANING]
+> [!WARNING]
 > The api implementation is still in action. So don't expect to cargo run and get a favourable outcome.
 > At the moment, the client only behaves as a free-rider, thus can't be taken in action.
 
-> [!hint] 
+> [!TIP] 
 > Still in this state, some part of api can be seen in action.
 > ```sh
 > cargo run --bin <a binary>
