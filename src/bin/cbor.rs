@@ -16,7 +16,7 @@ async fn main() {
     }
 
     {
-        let file = File::open("")
+        let file = File::open("");
 
 
 

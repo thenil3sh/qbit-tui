@@ -1,10 +1,11 @@
+use bytes::{Bytes, BytesMut};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncReadExt, BufReader};
 
 use crate::torrent::{Info, InfoHash, Metadata};
-use std::io;
+use std::io::{self, Read};
 use std::{collections::HashSet, path::PathBuf};
-use tokio::fs::{self, create_dir, create_dir_all};
+use tokio::fs::{self, File, create_dir, create_dir_all};
 
 use crate::torrent::{self};
 
@@ -21,37 +22,44 @@ impl State {
         Default::default()
     }
 
-    pub async fn load_or_new(torrent : &Metadata) -> Self {
+    pub async fn load_or_new(torrent: &Metadata) -> Self {
         match Self::path(&torrent.info_hash).await {
             Ok(x) => {
-                let file = fs::OpenOptions::new().read(true).open(x).await;
-                if let Ok(x) = ;
-
+                let mut file = fs::OpenOptions::new().read(true).open(x).await.unwrap();
+                if let Ok(state) = Self::from_file(&mut file).await {
+                    return state;
+                }
+                eprintln!("File exists, but not accessible");
                 Self::new()
             }
-            Err(_) => Self::try_from(torrent).unwrap()
+            Err(_) => Self::try_from(torrent).unwrap(),
         }
     }
 
-    async fn from_file<T>(info_hash : &InfoHash) -> Result<Self, io::Error> 
+    async fn from_file(file: &mut File) -> Result<Self, io::Error> {
+        let mut vec = Vec::new();
+        file.read_to_end(&mut vec).await?;
+
+        Self::from_bytes(vec)
+    }
+
+    fn from_bytes<T>(bytes: T) -> Result<Self, io::Error>
+    where
+        T: AsRef<[u8]>,
     {
-        let path = Self::path(info_hash).await?;
-        let mut file = fs::OpenOptions::new().read(true).open(path).await?;
-        let mut vec = vec![0u8;file.metadata().await?.len() as usize];
-        file.read_exact(&mut vec);
-        
-        vec.as_ref().try_into()
+        Self::try_from(bytes.as_ref())
     }
 
     async fn path(info_hash: &InfoHash) -> io::Result<PathBuf> {
-        let path = dirs::data_dir().expect("Failed to locate data directory")
+        let path = dirs::data_dir()
+            .ok_or(io::Error::new(
+                io::ErrorKind::NotFound,
+                "data directory not found",
+            ))?
+            .join("qbit")
             .join(info_hash.to_string());
+
         create_dir_all(&path).await?;
-        let mut path = path.join("state");
-        path.set_extension("cbor");
-        fs::OpenOptions::new()
-            .create(true)
-            .open(path.clone().join("state"));
         Ok(path)
     }
 
@@ -146,8 +154,8 @@ impl TryFrom<&[u8]> for State {
         return match ciborium::from_reader(value) {
             Ok(x) => Ok(x),
             Err(ciborium::de::Error::Io(x)) => Err(x),
-            _ => panic!()
-        }
+            _ => panic!(),
+        };
     }
 }
 
