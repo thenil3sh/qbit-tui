@@ -1,10 +1,12 @@
+use crate::torrent::RawInfo;
 use crate::torrent::{Info, InfoHash};
 use anyhow::{anyhow, bail};
 use bendy::decoding::Object::Dict;
+use bytes::Bytes;
 use serde::Deserialize;
+use serde_bytes::ByteBuf;
+use sha1::{Digest, Sha1};
 use std::{fs, path::Path};
-use sha1::{Sha1, Digest};
-use crate::torrent::RawInfo;
 
 #[derive(Debug, Deserialize)]
 pub struct Metadata {
@@ -34,7 +36,9 @@ impl Metadata {
             bendy::serde::from_bytes(&file).expect("Failed to parse torrent into TorrentMeta");
 
         metadata.info_byte = Self::scrap_raw_info(&file).unwrap().into();
-        metadata.info_hash = Self::generate_info_hash(&metadata.info_byte).unwrap().into();
+        metadata.info_hash = Self::generate_info_hash(&metadata.info_byte)
+            .unwrap()
+            .into();
 
         Ok(metadata)
     }
@@ -42,7 +46,7 @@ impl Metadata {
     pub fn info_byte(&self) -> &[u8] {
         self.info_byte.as_ref()
     }
-    
+
     fn generate_info_hash(buffer: &[u8]) -> Result<[u8; 20], anyhow::Error> {
         let mut hasher = Sha1::new();
         hasher.update(buffer);
@@ -67,6 +71,28 @@ impl Metadata {
         }
         bail!("Invalid torrent format : missing info dictionary")
     }
+    
+    
+    /// Gives out fake metadata, (only for tests)
+    pub(crate) fn fake() -> Self {
+        let piece_length = 16 * 1024;
+        let length = piece_length;
+
+        Self {
+            announce: String::new(),
+            created_by: String::new(),
+            creation_date: 0,
+            info: Info {
+                length,
+                name: "fake".to_string(),
+                piece_length,
+                pieces: ByteBuf::from(vec![0u8; 20]),
+            },
+            info_hash: InfoHash::from([0u8; 20]),
+            info_byte: RawInfo(vec![]),
+            url_list: vec![],
+        }
+    }
 }
 
 use std::fmt::Debug;
@@ -86,5 +112,4 @@ impl Info {}
 mod test {
     #[allow(unused_imports)]
     use super::*;
-    
 }

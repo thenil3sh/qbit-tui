@@ -12,6 +12,8 @@ use crate::torrent::{self};
 pub struct State {
     downloaded: usize,
     pub(crate) bit_field: Vec<u8>,
+    
+    #[serde(skip)]
     in_flight: HashSet<u32>,
     num_pieces: u32,
 }
@@ -174,28 +176,111 @@ impl TryFrom<&[u8]> for State {
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         return match ciborium::from_reader(value) {
             Ok(x) => Ok(x),
-            Err(ciborium::de::Error::Io(x)) => Err(x),
-            _ => panic!(),
+            Err(x) => Err(io::Error::new(io::ErrorKind::InvalidData, x)),
         };
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::env;
+    use std::{collections::HashSet, env};
 
     use serial_test::serial;
-    use tempfile::env::temp_dir;
+    use tokio::fs;
 
-    use crate::torrent::State;
-    
-    fn with_temp_dir<F : FnOnce()>(f : F) {
+    use crate::torrent::{Metadata, State};
+
+    /// Simulating data directory for tests, it's unsafe, better use it within single threaded environments
+    async fn with_temp_dir<F, Fut, T>(f: F) -> T
+    where
+        F: FnOnce() -> Fut,
+        Fut: Future<Output = T>,
+    {
         let temp_dir = tempfile::TempDir::new().unwrap();
+        let old = env::var_os("XDG_DATA_HOME");
+        let result;
+
+        // See std::env::set_var and std::env::remove_var's docs
         unsafe {
             std::env::set_var("XDG_DATA_HOME", temp_dir.path());
-            f();
-            std::env::remove_var("XDG_DATA_HOME");
+            result = f().await;
+            match old {
+                Some(x) => env::set_var("XDG_DATA_HOME", x),
+                None => env::remove_var("XDG_DATA_HOME"),
+            }
         }
+        result
+    }
+    
+    #[tokio::test]
+    #[serial]
+    async fn inflight_is_not_persisted() {
+        with_temp_dir(|| async {
+            let metadata = Metadata::fake();
+    
+            let mut state = State::try_from(&metadata).unwrap();
+            state.add_in_flight(2);
+            state.mark_piece_complete(1);
+    
+            state.save(&metadata.info_hash).await.unwrap();
+            let loaded = State::load_or_new(&metadata).await;
+    
+            assert!(!loaded.is_in_flight(2));
+            assert!(loaded.have_piece(1));
+        }).await;
+    }
+
+
+    #[tokio::test]
+    #[serial]
+    async fn load_new_metadata_if_not_already_exist() {
+        let meta = Metadata::fake();
+        let state = with_temp_dir(|| State::load_or_new(&meta)).await;
+
+        assert!(!state.is_complete());
+        assert_eq!(state.completed_pieces(), 0);
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn saving_and_loading_states_are_fine() {
+        let metadata = Metadata::fake();
+
+        let mut state = State {
+            bit_field: vec![0; 2],
+            num_pieces: 16,
+            in_flight: HashSet::from([3, 4]),
+            ..Default::default()
+        };
+        state.mark_piece_complete(4);
+        state.mark_piece_complete(3);
+        let loaded_state = with_temp_dir(|| async {
+            state.save(&metadata.info_hash).await.unwrap();
+
+            State::load_or_new(&metadata).await
+        })
+        .await;
+
+        assert!(loaded_state.have_piece(4));
+        assert!(loaded_state.have_piece(3));
+
+        assert_eq!(loaded_state.completed_pieces(), 2);
+    }
+    
+    #[tokio::test]
+    #[serial]
+    async fn reading_a_corrupted_state() {
+        let metadata = Metadata::fake();
+        let state = with_temp_dir(|| async {
+            let path = State::path(&metadata.info_hash).await.unwrap();
+            
+            fs::write(path, b"Definately not a valid cbor").await.unwrap();
+            
+            State::load_or_new(&metadata).await
+        }).await;
+        
+        assert!(!state.is_complete());
+        assert_eq!(state.completed_pieces(), 0);
     }
 
     #[test]
@@ -237,6 +322,7 @@ mod tests {
         assert!(state.have_piece(0));
 
         assert!(!state.have_piece(7));
+        assert!(!state.have_piece(1));
     }
 
     #[test]
@@ -288,12 +374,14 @@ mod tests {
             num_pieces: 14,
             ..Default::default()
         };
-
+        
+        state.in_flight.insert(2);
         for _ in 0..20 {
             state.mark_piece_complete(2);
         }
 
         assert!(state.downloaded <= state.num_pieces as usize);
+        assert_eq!(state.completed_pieces(), 1);
     }
 
     #[test]
