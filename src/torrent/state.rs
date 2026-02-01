@@ -1,11 +1,10 @@
-use bytes::{Bytes, BytesMut};
 use serde::{Deserialize, Serialize};
-use tokio::io::{AsyncReadExt, BufReader};
+use tokio::io::AsyncReadExt;
 
-use crate::torrent::{Info, InfoHash, Metadata};
-use std::io::{self, Read};
+use crate::torrent::{InfoHash, Metadata};
+use std::io::{self, Write};
 use std::{collections::HashSet, path::PathBuf};
-use tokio::fs::{self, File, create_dir, create_dir_all};
+use tokio::fs::{self, File, create_dir_all};
 
 use crate::torrent::{self};
 
@@ -23,17 +22,19 @@ impl State {
     }
 
     pub async fn load_or_new(torrent: &Metadata) -> Self {
-        match Self::path(&torrent.info_hash).await {
-            Ok(x) => {
-                let mut file = fs::OpenOptions::new().read(true).open(x).await.unwrap();
-                if let Ok(state) = Self::from_file(&mut file).await {
-                    return state;
-                }
-                eprintln!("File exists, but not accessible");
-                Self::new()
+        match Self::try_load(torrent).await {
+            Ok(state) => state,
+            Err(err) => {
+                eprintln!("Loading state failed, starting a fresh one | {err}");
+                Self::try_from(torrent).expect("Metadata must be in a valid format")
             }
-            Err(_) => Self::try_from(torrent).unwrap(),
         }
+    }
+
+    async fn try_load(torrent: &Metadata) -> io::Result<Self> {
+        let path = Self::path(&torrent.info_hash).await?;
+        let mut file = File::open(path).await?;
+        Self::from_file(&mut file).await
     }
 
     async fn from_file(file: &mut File) -> Result<Self, io::Error> {
@@ -50,6 +51,26 @@ impl State {
         Self::try_from(bytes.as_ref())
     }
 
+    /// Serializes state into CBOR bytes
+    fn to_bytes(&self) -> Result<Vec<u8>, io::Error> {
+        let mut buffer = Vec::new();
+        ciborium::ser::into_writer(self, &mut buffer)
+            .map_err(|x| io::Error::new(io::ErrorKind::InvalidData, x))?;
+        Ok(buffer)
+    }
+
+    async fn save(&self, info_hash: &InfoHash) -> Result<(), io::Error> {
+        let path = Self::path(info_hash).await?;
+        let tmp = path.with_extension("tmp");
+
+        let bytes = self.to_bytes()?;
+
+        fs::write(&tmp, bytes).await?;
+        fs::rename(tmp, path).await?;
+
+        Ok(())
+    }
+
     async fn path(info_hash: &InfoHash) -> io::Result<PathBuf> {
         let path = dirs::data_dir()
             .ok_or(io::Error::new(
@@ -60,7 +81,7 @@ impl State {
             .join(info_hash.to_string());
 
         create_dir_all(&path).await?;
-        Ok(path)
+        Ok(path.join("state.cbor"))
     }
 
     pub(crate) fn remove_in_flight(&mut self, piece: u32) {
@@ -161,7 +182,21 @@ impl TryFrom<&[u8]> for State {
 
 #[cfg(test)]
 mod tests {
+    use std::env;
+
+    use serial_test::serial;
+    use tempfile::env::temp_dir;
+
     use crate::torrent::State;
+    
+    fn with_temp_dir<F : FnOnce()>(f : F) {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        unsafe {
+            std::env::set_var("XDG_DATA_HOME", temp_dir.path());
+            f();
+            std::env::remove_var("XDG_DATA_HOME");
+        }
+    }
 
     #[test]
     fn mark_piece_complete_works_fine() {
@@ -206,7 +241,7 @@ mod tests {
 
     #[test]
     fn is_complete_works_on_full_bytes() {
-        let mut state = State {
+        let state = State {
             bit_field: vec![0b1111_1111, 0b1111_1111],
             num_pieces: 16,
             ..Default::default()
@@ -254,7 +289,7 @@ mod tests {
             ..Default::default()
         };
 
-        for i in 0..20 {
+        for _ in 0..20 {
             state.mark_piece_complete(2);
         }
 

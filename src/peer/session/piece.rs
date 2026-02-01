@@ -1,19 +1,11 @@
-use std::{
-    cmp::max,
-    collections::{HashSet, VecDeque},
-    sync::Arc,
-};
+use std::collections::{HashSet, VecDeque};
 
-use bytes::{Bytes, BytesMut};
+use bytes::BytesMut;
 use rand::Fill;
-use tokio::sync::Mutex;
 
 use sha1::{Digest, Sha1};
 
-use crate::{
-    peer::{Message, SessionError, session::piece},
-    torrent::Info,
-};
+use crate::peer::{Message, session::piece};
 
 pub struct Piece {
     index: u32,

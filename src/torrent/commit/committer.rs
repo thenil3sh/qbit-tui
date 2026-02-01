@@ -1,8 +1,7 @@
-use super::{error::Result, job::Job};
-use bytes::Bytes;
+use super::job::Job;
 use std::{
-    env, io::{self, SeekFrom},
-    path::{Path, PathBuf},
+    io::SeekFrom,
+    path::PathBuf,
     sync::Arc, time::Duration,
 };
 use tokio::{

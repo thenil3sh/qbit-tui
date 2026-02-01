@@ -1,4 +1,4 @@
-use std::{fs::File, io::{BufWriter, Read, Write}};
+use std::{fs::File, io::{BufWriter, Write}};
 
 use ciborium::into_writer;
 use qbit::torrent::State;

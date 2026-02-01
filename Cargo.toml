@@ -25,10 +25,11 @@ ratatui = "0.29.0"
 reqwest = "0.12.28"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_bytes = "0.11.19"
+serial_test = "3.3.1"
 sha1 = "0.10.6"
 thiserror = "2.0.17"
 tokio = { version = "1.48.0", features = ["bytes", "fs", "macros", "net", "rt-multi-thread"] }
 
 
 [dev-dependencies]
-# (0_0;) what
+tempfile = "3.24.0"
