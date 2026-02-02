@@ -1,9 +1,5 @@
 use super::job::Job;
-use std::{
-    io::SeekFrom,
-    path::PathBuf,
-    sync::Arc, time::Duration,
-};
+use std::{io::SeekFrom, path::PathBuf, sync::Arc, time::Duration};
 use tokio::{
     fs,
     io::AsyncSeekExt,
@@ -88,15 +84,68 @@ impl Committer {
 
     pub async fn run(&mut self) -> commit::Result<()> {
         self.init_storage().await?;
-        
+
         while let Some(job) = self.reciever.recv().await {
             let mut attempts = 4;
-            while let Err(err) = self.commit(&job).await && attempts > 0 {
+            while let Err(err) = self.commit(&job).await
+                && attempts > 0
+            {
                 eprintln!("Err : {err} | Failed to commit {}", job.index);
                 tokio::time::sleep(Duration::from_millis(200)).await;
                 attempts -= 1;
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use tokio::sync::mpsc;
+
+    use crate::torrent::{self, CommitJob, Committer, Metadata, State};
+
+
+    /// Makes a random temp directory and simulates XDG_DATA_HOME within the environment.
+    /// Because it is making use of global env var, should be only taken in use in single single thread,
+    async fn with_temp_dir<F, T, Fut>(f: F) -> T
+    where
+        F: FnOnce(mpsc::Sender<CommitJob>) -> Fut,
+        Fut: Future<Output = T>,
+    {
+        let temp = tempfile::TempDir::new().unwrap();
+        let old_entry = std::env::var("XDG_DATA_HOME");
+        let metadata = Metadata::fake();
+
+        
+        
+        let result;
+        unsafe {
+            std::env::set_var("XDG_DATA_HOME", temp.path());
+            let state = State::load_or_new(&metadata).await.atomic();
+            let committer = Committer::new(state, metadata.info_hash, metadata.info.atomic());
+            result = f(committer.sender.clone()).await;
+
+            tokio::spawn(async move {
+                committer.init_storage().await.unwrap();
+                // while 
+            });
+
+            
+            match old_entry {
+                Ok(old) => std::env::set_var("XDG_DATA_HOME", old),
+                Err(_) => std::env::remove_var("XDG_DATA_HOME"),
+            }
+        };
+        result
+    }
+    
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn committer_successfully_writes_to_disk() {
+        with_temp_dir(|sender| async {
+            
+        }).await;
     }
 }

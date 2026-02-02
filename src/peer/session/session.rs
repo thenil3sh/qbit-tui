@@ -7,7 +7,7 @@ use crate::{
             Piece,
         },
     },
-    torrent,
+    torrent::{self, Committer},
 };
 
 use bytes::Bytes;
@@ -18,12 +18,11 @@ use std::{
 };
 
 pub struct Session {
-    // commit_tx : mpsc::Sender<Committer>
+    // commit_tx: mpsc::Sender<Committer>,
     connection: Connection,
     last_active: Instant,
     torrent_info: Arc<torrent::Info>,
     current_piece: Option<Piece>,
-    current_offset: u32,
     state: Arc<Mutex<torrent::State>>,
     is_choking: bool,
     is_interested: bool,
@@ -34,21 +33,26 @@ pub struct Session {
 }
 
 use Message::*;
-use tokio::{io, sync::Mutex, time::timeout};
+use tokio::{
+    io,
+    sync::{Mutex, mpsc},
+    time::timeout,
+};
 
 impl Session {
     pub fn new(
         connection: Connection,
         torrent_info: Arc<torrent::Info>,
         state: Arc<Mutex<torrent::State>>,
+        // commit_tx : mpsc::Sender<Committer>,
     ) -> Self {
         Self {
+            // commit_tx,
             connection,
             last_active: Instant::now(),
             torrent_info,
             state,
             current_piece: None,
-            current_offset: 0,
             is_choking: true,
             is_interested: false,
             request_queue: VecDeque::new(),
@@ -83,8 +87,10 @@ impl Session {
                 } => self.handle_piece(index, offset, data).await?,
                 Event::ChokedMe => self.handle_choked_me().await?,
                 Event::KeepAlive => {}
-                x => eprintln!("Unimplemented event recieved : {x:?}"),
+                x => eprintln!("\x1b[034mUnimplemented event recieved : {x:?}\x1b[0m"),
             }
+
+            self.send_request().await?;
         }
     }
 
@@ -92,7 +98,7 @@ impl Session {
         self.is_choking = true;
         if let Some(piece) = self.current_piece.as_ref() {
             self.state.lock().await.remove_in_flight(piece.index());
-            todo!("Need some rework here")
+            // todo!("Need some rework here")
         }
         Ok(())
     }
@@ -101,29 +107,43 @@ impl Session {
         if self.current_piece.is_none() {
             return Err(Error::ProtocolViolation);
         }
-        let piece=  self.current_piece.as_mut().unwrap();
+        let piece = self.current_piece.as_mut().unwrap();
         piece.update_buffer(index, offset, data.as_ref())?;
-
         if piece.is_complete() {
-            todo!("Commit!!!")
+            eprintln!("\x1b[35m\x1b[1mCompleted piece {index}!, thats a SUCCESS!!!!!!!!!!!!!!\x1b[0m");
+            self.current_piece = None;
+            // todo!("Commit!!");
         }
+        self.send_request().await?;
         Ok(())
     }
 
     async fn handle_have(&mut self, index: u32) -> Result<(), Error> {
-        let interesting_piece = self.reserve_interesting_piece().await;
+        self.update_bitfield(index)?;
 
-        if !self.is_choking && interesting_piece.is_some() {
-            self.connection
-                .send(Message::Request {
-                    index,
-                    offset: 0,
-                    length: 16384,
-                })
-                .await?;
+        if !self.is_choking && self.current_piece.is_none() {
+            if let Some(index) = self.reserve_interesting_piece().await {
+                self.current_piece = Some(Piece::new(index, self.torrent_info.piece_len(index)));
+                self.connection
+                    .send(self.current_piece.as_mut().unwrap().next_block().unwrap())
+                    .await?;
+            }
         }
         Ok(())
     }
+
+    async fn send_request(&mut self) -> session::Result<()> {
+        if !self.is_choking
+            && self.am_interested
+            && let Some(ref mut piece) = self.current_piece
+        {
+            if let Some(block) = piece.next_block() {
+                self.connection.send(block).await?;
+            }
+        }
+        Ok(())
+    }
+
     fn update_bitfield(&mut self, index: u32) -> session::Result<()> {
         let piece = index as usize;
         let byte = piece / 8;
@@ -240,12 +260,9 @@ impl Session {
         {
             self.current_piece = Some(Piece::new(index, self.torrent_info.piece_len(index)));
             self.state.lock().await.add_in_flight(index);
+            self.current_piece = Some(Piece::new(index, self.torrent_info.piece_len(index)));
             self.connection
-                .send(Message::Request {
-                    index,
-                    offset: 0,
-                    length: 16384,
-                })
+                .send(self.current_piece.as_mut().unwrap().next_block().unwrap())
                 .await?;
         }
         Ok(())

@@ -2,7 +2,7 @@ use std::{sync::Arc, time::Duration};
 
 use qbit::{
     peer::{Handshake, PeerSession},
-    torrent::{Metadata, State, self},
+    torrent::{self, Metadata, State},
     tracker::{self},
 };
 use tokio::{sync::Mutex, task::JoinSet, time::timeout};
@@ -64,7 +64,7 @@ async fn main() {
             async move {
                 let mut session = PeerSession::new(i, torrent_info, state);
                 if let Err(x) = session.run().await {
-                    eprintln!("Session Error {x}");
+                    eprintln!("\x1b[033mSession Error {x:?}\x1b[0m");
                 }
                 *count.lock().await += 1;
             }

@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use serde_bytes::ByteBuf;
-use std::{fmt::Debug, ops::Deref};
+use std::{fmt::Debug, ops::Deref, sync::Arc};
 
 #[derive(Deserialize)]
 pub struct Info {
@@ -10,6 +10,8 @@ pub struct Info {
     pub piece_length: u32,
     pub pieces: ByteBuf,
 }
+
+pub type AtomicInfo = Arc<Info>;
 
 impl Info {
     pub fn piece_len(&self, index: u32) -> u32 {
@@ -21,6 +23,11 @@ impl Info {
             x if x == num_pieces - 1 => self.length % self.piece_length,
             _ => self.piece_length,
         }
+    }
+
+    /// Consumes info and gives out Arc<Info>
+    pub fn atomic(self) -> AtomicInfo {
+        Arc::new(self)
     }
 }
 

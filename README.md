@@ -23,7 +23,9 @@ A bittorrent client, implementated in Rust.
 - [ ] `(new)` save state to a file as well as retrive ⭐
 - [ ] `(new)` Handle pieces sent by peers
 - [ ] `(new)` Limit active users, as configured
+- [ ] `(new)` any new piece gets marked as bad :(
 - [ ] more tests!!!
+- [ ] `(new)` Remove hardcoded values
 - [ ] Actually test your api, lmao
 - [ ] Check if peer's sending/asking for a valid piece
 - [x] Implement Debug for Messages, manually

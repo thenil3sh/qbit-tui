@@ -23,7 +23,8 @@ pub struct Piece {
 impl Piece {
     pub fn new(index: u32, piece_len: u32) -> Self {
         let mut offset = 0;
-        let max_block_len = 16384;
+        let max_block_len = 16384; // HARD CODED, i'll take care of it
+
         let mut pending = VecDeque::with_capacity((piece_len / max_block_len + 1) as usize);
         while offset < piece_len {
             if offset + max_block_len > piece_len {
@@ -33,7 +34,8 @@ impl Piece {
             }
             offset += max_block_len;
         }
-        let mut buffer = BytesMut::with_capacity(piece_len as usize);
+        let buffer= vec![0u8; piece_len as usize];
+        let mut buffer = BytesMut::from(buffer.as_slice());
         buffer.fill(0);
         Self {
             index,
@@ -46,7 +48,7 @@ impl Piece {
             buffer,
         }
     }
-    
+
     pub fn index(&self) -> u32 {
         self.index
     }
@@ -103,18 +105,36 @@ impl Piece {
             || self.index != index
             || expected_len != data.len() as u32
         {
+            eprintln!("\x1b[37mSelf.index : {}, found : {}\x1b[0m",
+                self.index(),
+                index
+            );
+
             return Err(Error::BadPiece);
         } else if self.received.contains(&offset) {
-            return Err(Error::DuplicateBlock);
+            return Err(Error::DuplicateBlock {
+                index: self.index,
+                block: offset,
+            });
         } else if !self.on_fly.contains(&offset) {
-            return Err(Error::UnexpectedBlock);
+            eprintln!("{:?}", self.on_fly);
+            return Err(Error::UnexpectedBlock {
+                index: self.index,
+                block: offset,
+            });
         }
+
+        if offset + expected_len > self.buffer.len() as u32 {
+            eprintln!("\x1b[31mAccessing offset {}, but length is {}\x1b[0m", offset + expected_len, self.buffer.len());
+        }
+        
         self.buffer[offset as usize..(offset + expected_len) as usize].copy_from_slice(data);
         self.on_fly.remove(&offset);
         self.received.insert(offset);
         Ok(())
     }
 
+    /// When self.pending doesn't seem kind
     pub fn rebuild_pending(&mut self) {
         self.pending.clear();
         let mut offset = 0;
@@ -156,16 +176,21 @@ type Result<T> = std::result::Result<T, Error>;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("received bad piece from peer")]
+    #[error("Received bad piece from peer")]
     BadPiece,
+
     #[error("Peer send a duplicate block")]
-    DuplicateBlock,
-    #[error("Invalid piece recieved from peer")]
-    UnexpectedBlock,
+    DuplicateBlock { index: u32, block: u32 },
+
+    #[error("Recieved invalid block from peer")]
+    UnexpectedBlock { index: u32, block: u32 },
+
     #[error("Recieved block with invalid block length")]
     InvalidBlockLength,
+
     #[error("Recieved piece with invalid index")]
     InvalidPieceIndex,
+
     #[error("Hash check failed")]
     HashMismatch,
 }

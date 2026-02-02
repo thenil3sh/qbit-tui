@@ -1,12 +1,16 @@
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncReadExt;
+use tokio::sync::Mutex;
 
 use crate::torrent::{InfoHash, Metadata};
 use std::io::{self, Write};
+use std::sync::Arc;
 use std::{collections::HashSet, path::PathBuf};
 use tokio::fs::{self, File, create_dir_all};
 
 use crate::torrent::{self};
+
+pub type AtomicState = Arc<Mutex<State>>;
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct State {
@@ -33,11 +37,19 @@ impl State {
         }
     }
 
-    async fn try_load(torrent: &Metadata) -> io::Result<Self> {
+    
+    pub(crate) async fn try_load(torrent: &Metadata) -> io::Result<Self> {
         let path = Self::path(&torrent.info_hash).await?;
         let mut file = File::open(path).await?;
         Self::from_file(&mut file).await
     }
+    
+   /// Consumes current state to give out atomic one; 
+    pub(crate) fn atomic(self) -> AtomicState {
+        Arc::new(Mutex::new(self))
+    }
+    
+    pub(crate)
 
     async fn from_file(file: &mut File) -> Result<Self, io::Error> {
         let mut vec = Vec::new();
