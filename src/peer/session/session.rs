@@ -18,7 +18,7 @@ use std::{
 };
 
 pub struct Session {
-    commit_rx: mpsc::Receiver<commit::Event>,
+    commit_rx: broadcast::Receiver<commit::Event>,
     connection: Connection,
     last_active: Instant,
     torrent_info: Arc<torrent::Info>,
@@ -34,7 +34,7 @@ pub struct Session {
 use Message::*;
 use tokio::{
     io,
-    sync::{Mutex, mpsc},
+    sync::{Mutex, broadcast, mpsc},
     time::{sleep, timeout},
 };
 
@@ -43,7 +43,7 @@ impl Session {
         connection: Connection,
         torrent_info: Arc<torrent::Info>,
         state: Arc<Mutex<torrent::State>>,
-        commit_rx: mpsc::Receiver<commit::Event>,
+        commit_rx: broadcast::Receiver<commit::Event>,
     ) -> Self {
         Self {
             commit_rx,
@@ -82,6 +82,7 @@ impl Session {
     async fn handle_commit_event(&mut self, event: commit::Event) -> session::Result<()> {
         match event {
             CommitEvent::PieceCommit(index) => self.connection.send(Message::Have(index)).await?,
+            CommitEvent::FailedCommit => todo!("Fokin failed?")
         }
         Ok(())
     }
@@ -125,7 +126,7 @@ impl Session {
                 );
             }
             self.current_piece = None;
-            todo!("Commit!!");
+            todo!("Sender fucking needs a sender bro");
         }
         self.pump_requests().await?;
         Ok(())

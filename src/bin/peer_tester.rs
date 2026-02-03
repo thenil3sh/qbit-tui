@@ -2,7 +2,7 @@ use std::{sync::Arc, time::Duration};
 
 use qbit::{
     peer::{Handshake, PeerSession},
-    torrent::{self, Metadata, State},
+    torrent::{self, Committer, Metadata, State},
     tracker::{self},
 };
 use tokio::{sync::Mutex, task::JoinSet, time::timeout};
@@ -12,6 +12,7 @@ async fn main() {
     let torrent = Arc::new(
         Metadata::from_file("test/debian.torrent").expect("Fucking failed at reading torrent"),
     );
+    
     let torrent_info: Arc<torrent::Info> = Arc::new(torrent.info_byte().try_into().unwrap());
     let state: Arc<Mutex<State>> = Arc::new(Mutex::new(torrent.as_ref().try_into().unwrap()));
     let peers: tracker::Response = tracker::load_cache_or_fetch_tracker(&torrent)
@@ -22,6 +23,7 @@ async fn main() {
 
     let connection_list = Arc::new(Mutex::new(Vec::new()));
     let mut join_set = JoinSet::new();
+    let mut committer = Committer::new(state.clone(), torrent.info_hash, torrent_info.clone());
 
     for (index, &peer) in peers.peers.iter().enumerate() {
         let handshake = Handshake::new(&torrent.info_hash);
@@ -54,15 +56,18 @@ async fn main() {
         std::mem::take(&mut *guard)
     };
 
+    let (sender, _) = tokio::sync::broadcast::channel(4);
     let mut join_set = JoinSet::new();
+    join_set.spawn(async move { committer.run().await.unwrap(); });
     let count = Arc::new(Mutex::new(0usize));
     for i in connection_list {
         join_set.spawn({
             let state = state.clone();
             let torrent_info = torrent_info.clone();
             let count = count.clone();
+            let receiver = sender.subscribe();
             async move {
-                let mut session = PeerSession::new(i, torrent_info, state);
+                let mut session = PeerSession::new(i, torrent_info, state, receiver);
                 if let Err(x) = session.run().await {
                     eprintln!("\x1b[033mSession Error {x:?}\x1b[0m");
                 }

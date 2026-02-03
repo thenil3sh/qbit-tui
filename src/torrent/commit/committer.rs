@@ -8,8 +8,7 @@ use tokio::{
 use tokio::{fs::OpenOptions, io::AsyncWriteExt};
 
 use crate::{peer::Message, torrent::{
-    self, Info, InfoHash,
-    commit::{self, Error},
+    self, commit::{self, Error, Event}, CommitEvent, Info, InfoHash
 }};
 
 pub struct Committer {
@@ -18,7 +17,7 @@ pub struct Committer {
     state: Arc<Mutex<torrent::State>>,
     info_hash: InfoHash,
     info: Arc<Info>,
-    broadcast : broadcast::Sender<Message>,
+    broadcast : broadcast::Sender<commit::Event>,
 }
 
 impl Committer {
@@ -95,6 +94,11 @@ impl Committer {
                 eprintln!("Err : {err} | Failed to commit {}", job.index);
                 tokio::time::sleep(Duration::from_millis(200)).await;
                 attempts -= 1;
+            }
+            if attempts > 0 {
+                self.broadcast.send(Event::PieceCommit(job.index))?;
+            } else {
+                self.broadcast.send(Event::FailedCommit)?;
             }
         }
         Ok(())
