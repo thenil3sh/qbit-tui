@@ -27,7 +27,6 @@ pub struct Session {
     is_choking: bool,
     is_interested: bool,
     am_choking: bool,
-    request_queue: VecDeque<Message>,
     am_interested: bool,
     bit_field: Option<Vec<u8>>,
 }
@@ -55,7 +54,6 @@ impl Session {
             current_piece: None,
             is_choking: true,
             is_interested: false,
-            request_queue: VecDeque::new(),
             am_choking: true,
             am_interested: false,
             bit_field: None,
@@ -89,8 +87,6 @@ impl Session {
                 Event::KeepAlive => {}
                 x => eprintln!("\x1b[034mUnimplemented event recieved : {x:?}\x1b[0m"),
             }
-
-            self.send_request().await?;
         }
     }
 
@@ -110,35 +106,25 @@ impl Session {
         let piece = self.current_piece.as_mut().unwrap();
         piece.update_buffer(index, offset, data.as_ref())?;
         if piece.is_complete() {
-            eprintln!("\x1b[35m\x1b[1mCompleted piece {index}!, thats a SUCCESS!!!!!!!!!!!!!!\x1b[0m");
+            if piece.verify(&self.torrent_info.pieces) {
+                eprintln!("\x1b[35m\x1b[1mDownloaded piece : {index} + VERIFIED CHECKSUM!!!\x1b[0m");
+            }
             self.current_piece = None;
-            // todo!("Commit!!");
+            todo!("Commit!!");
         }
-        self.send_request().await?;
+        self.pump_requests().await?;
         Ok(())
     }
 
+    /// Have is the piece a peer wants to tell that they have.
+    /// It's possible to be interested in that very piece, moreover, it's worth updating their bitfield to keep track of their pieces.
     async fn handle_have(&mut self, index: u32) -> Result<(), Error> {
         self.update_bitfield(index)?;
 
         if !self.is_choking && self.current_piece.is_none() {
             if let Some(index) = self.reserve_interesting_piece().await {
                 self.current_piece = Some(Piece::new(index, self.torrent_info.piece_len(index)));
-                self.connection
-                    .send(self.current_piece.as_mut().unwrap().next_block().unwrap())
-                    .await?;
-            }
-        }
-        Ok(())
-    }
-
-    async fn send_request(&mut self) -> session::Result<()> {
-        if !self.is_choking
-            && self.am_interested
-            && let Some(ref mut piece) = self.current_piece
-        {
-            if let Some(block) = piece.next_block() {
-                self.connection.send(block).await?;
+                self.pump_requests().await?;
             }
         }
         Ok(())
@@ -254,16 +240,37 @@ impl Session {
             .any(|(mine, peer)| !mine & peer != 0)
     }
 
+    /// When unchoked, I'm ready to request piece from peer
+    /// Because each peer is assigned a piece here, I'll pipeline the block requests
     async fn handle_unchoke(&mut self) -> session::Result<()> {
         if self.am_interested
             && let Some(index) = self.reserve_interesting_piece().await
         {
-            self.current_piece = Some(Piece::new(index, self.torrent_info.piece_len(index)));
+            let piece = Piece::new(index, self.torrent_info.piece_len(index));
+            self.current_piece = Some(piece);
             self.state.lock().await.add_in_flight(index);
-            self.current_piece = Some(Piece::new(index, self.torrent_info.piece_len(index)));
-            self.connection
-                .send(self.current_piece.as_mut().unwrap().next_block().unwrap())
-                .await?;
+            self.pump_requests().await?;
+        }
+        Ok(())
+    }
+
+    /// Repeatedly places piece block requests in pipeline, upto Piece's on-fly capacity
+    /// So let's say if Piece has capacity of handling 4 blocks on-fly, only 4 blocks will be asked at a time
+    async fn pump_requests(&mut self) -> session::Result<()> {
+        if self.is_choking || !self.am_interested {
+            return Ok(());
+        }
+
+        let Some(ref mut current_piece) = self.current_piece else {
+            return Ok(());
+        };
+
+        while current_piece.can_request_more() {
+            let Some(piece_request) = current_piece.next_block() else {
+                break;
+            };
+            eprintln!("{piece_request:?} SENT");
+            self.connection.send(piece_request).await?;
         }
         Ok(())
     }
@@ -274,9 +281,5 @@ impl Session {
             self.connection.send(Message::Interested).await?;
         }
         Ok(())
-    }
-
-    async fn request_block(&self) -> Result<(), Error> {
-        todo!()
     }
 }

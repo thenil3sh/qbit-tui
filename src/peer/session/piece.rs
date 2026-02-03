@@ -21,6 +21,8 @@ pub struct Piece {
 }
 
 impl Piece {
+
+
     pub fn new(index: u32, piece_len: u32) -> Self {
         let mut offset = 0;
         let max_block_len = 16384; // HARD CODED, i'll take care of it
@@ -34,9 +36,7 @@ impl Piece {
             }
             offset += max_block_len;
         }
-        let buffer= vec![0u8; piece_len as usize];
-        let mut buffer = BytesMut::from(buffer.as_slice());
-        buffer.fill(0);
+        let buffer = BytesMut::zeroed(piece_len as usize);
         Self {
             index,
             max_block_len,
@@ -57,6 +57,9 @@ impl Piece {
         (self.piece_len + self.max_block_len - 1) / self.max_block_len
     }
 
+
+    /// Returns a Some(Message::Request) of a Piece block
+    /// Returns None up when when pipeline's on-fly capacity is reached
     pub fn next_block(&mut self) -> Option<Message> {
         if let Some(Block { offset, length }) = self.pending.pop_front() {
             self.on_fly.insert(offset);
@@ -67,11 +70,6 @@ impl Piece {
             });
         }
         None
-    }
-
-    pub fn commit() -> piece::Result<()> {
-        todo!("Bro fr you think, it'll work magically");
-        Ok(())
     }
 
     pub fn can_request_more(&self) -> bool {
@@ -134,7 +132,7 @@ impl Piece {
         Ok(())
     }
 
-    /// When self.pending doesn't seem kind
+    
     pub fn rebuild_pending(&mut self) {
         self.pending.clear();
         let mut offset = 0;
@@ -154,12 +152,17 @@ impl Piece {
         self.rebuild_pending();
     }
 
-    pub fn verify(&self, expected_hash: &[u8; 20]) -> bool {
+
+    pub fn verify(&self, pieces : &[u8]) -> bool {
         let mut hasher = Sha1::new();
         hasher.update(&self.buffer);
         let result = hasher.finalize();
 
-        return *expected_hash == *result;
+        let index = self.index as usize;
+        let range = index * 20..index * 20 + 20;
+        let pieces = &pieces[range];
+
+        *pieces == *result
     }
 
     pub fn data(&self) -> &[u8] {
