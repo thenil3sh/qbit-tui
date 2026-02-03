@@ -7,7 +7,7 @@ use crate::{
             Piece,
         },
     },
-    torrent::{self, Committer},
+    torrent::{self, CommitEvent, Committer, commit},
 };
 
 use bytes::Bytes;
@@ -18,7 +18,7 @@ use std::{
 };
 
 pub struct Session {
-    // commit_tx: mpsc::Sender<Committer>,
+    commit_rx: mpsc::Receiver<commit::Event>,
     connection: Connection,
     last_active: Instant,
     torrent_info: Arc<torrent::Info>,
@@ -35,7 +35,7 @@ use Message::*;
 use tokio::{
     io,
     sync::{Mutex, mpsc},
-    time::timeout,
+    time::{sleep, timeout},
 };
 
 impl Session {
@@ -43,10 +43,10 @@ impl Session {
         connection: Connection,
         torrent_info: Arc<torrent::Info>,
         state: Arc<Mutex<torrent::State>>,
-        // commit_tx : mpsc::Sender<Committer>,
+        commit_rx: mpsc::Receiver<commit::Event>,
     ) -> Self {
         Self {
-            // commit_tx,
+            commit_rx,
             connection,
             last_active: Instant::now(),
             torrent_info,
@@ -62,32 +62,45 @@ impl Session {
 
     pub async fn run(&mut self) -> Result<(), Error> {
         loop {
-            let time_left = Duration::from_secs(120) - (Instant::now() - self.last_active);
-            let timeout = timeout(time_left, self.connection.read_message()).await;
-
-            let message = if timeout.is_err() {
-                return Err(Error::TimeOut);
-            } else {
-                timeout.unwrap()?
-            };
-            self.last_active = Instant::now();
-            eprintln!("Got message : {message:?}");
-            let event = self.handle_message(message).await?;
-
-            match event {
-                BitFieldUpdated => self.handle_bitfield().await?,
-                UnchokedMe => self.handle_unchoke().await?,
-                Event::Have(x) => self.handle_have(x).await?,
-                PieceRecieved {
-                    index,
-                    offset,
-                    data,
-                } => self.handle_piece(index, offset, data).await?,
-                Event::ChokedMe => self.handle_choked_me().await?,
-                Event::KeepAlive => {}
-                x => eprintln!("\x1b[034mUnimplemented event recieved : {x:?}\x1b[0m"),
+            tokio::select! {
+                message = self.connection.read_message() => {
+                    let message = message?;
+                    eprintln!("Got message : {message:?}");
+                    let event = self.handle_message(message).await?;
+                    self.handle_event(event).await?;
+                }
+                commit = self.commit_rx.recv() => {
+                    self.handle_commit_event(commit.unwrap()).await?;
+                }
+                _ = tokio::time::sleep(Duration::from_secs(120)) => {
+                    return Err(Error::TimeOut)
+                }
             }
         }
+    }
+
+    async fn handle_commit_event(&mut self, event: commit::Event) -> session::Result<()> {
+        match event {
+            CommitEvent::PieceCommit(index) => self.connection.send(Message::Have(index)).await?,
+        }
+        Ok(())
+    }
+
+    async fn handle_event(&mut self, event: session::Event) -> session::Result<()> {
+        match event {
+            BitFieldUpdated => self.handle_bitfield().await?,
+            UnchokedMe => self.handle_unchoke().await?,
+            Event::Have(x) => self.handle_have(x).await?,
+            PieceRecieved {
+                index,
+                offset,
+                data,
+            } => self.handle_piece(index, offset, data).await?,
+            Event::ChokedMe => self.handle_choked_me().await?,
+            Event::KeepAlive => {}
+            x => eprintln!("\x1b[034mUnimplemented event recieved : {x:?}\x1b[0m"),
+        }
+        Ok(())
     }
 
     async fn handle_choked_me(&mut self) -> io::Result<()> {
@@ -107,7 +120,9 @@ impl Session {
         piece.update_buffer(index, offset, data.as_ref())?;
         if piece.is_complete() {
             if piece.verify(&self.torrent_info.pieces) {
-                eprintln!("\x1b[35m\x1b[1mDownloaded piece : {index} + VERIFIED CHECKSUM!!!\x1b[0m");
+                eprintln!(
+                    "\x1b[35m\x1b[1mDownloaded piece : {index} + VERIFIED CHECKSUM!!!\x1b[0m"
+                );
             }
             self.current_piece = None;
             todo!("Commit!!");

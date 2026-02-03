@@ -3,14 +3,14 @@ use std::{io::SeekFrom, path::PathBuf, sync::Arc, time::Duration};
 use tokio::{
     fs,
     io::AsyncSeekExt,
-    sync::{Mutex, mpsc},
+    sync::{Mutex, broadcast, mpsc},
 };
 use tokio::{fs::OpenOptions, io::AsyncWriteExt};
 
-use crate::torrent::{
+use crate::{peer::Message, torrent::{
     self, Info, InfoHash,
     commit::{self, Error},
-};
+}};
 
 pub struct Committer {
     sender: mpsc::Sender<Job>,
@@ -18,6 +18,7 @@ pub struct Committer {
     state: Arc<Mutex<torrent::State>>,
     info_hash: InfoHash,
     info: Arc<Info>,
+    broadcast : broadcast::Sender<Message>,
 }
 
 impl Committer {
@@ -29,6 +30,7 @@ impl Committer {
             state,
             info_hash,
             info,
+            broadcast : broadcast::Sender::new(3)
         }
     }
 
