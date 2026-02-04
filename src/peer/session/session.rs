@@ -7,7 +7,7 @@ use crate::{
             Piece,
         },
     },
-    torrent::{self, CommitEvent, Committer, commit},
+    torrent::{self, CommitEvent, CommitJob, Committer, commit},
 };
 
 use bytes::Bytes;
@@ -18,9 +18,9 @@ use std::{
 };
 
 pub struct Session {
+    commit_tx: mpsc::Sender<CommitJob>,
     commit_rx: broadcast::Receiver<commit::Event>,
     connection: Connection,
-    last_active: Instant,
     torrent_info: Arc<torrent::Info>,
     current_piece: Option<Piece>,
     state: Arc<Mutex<torrent::State>>,
@@ -35,7 +35,7 @@ use Message::*;
 use tokio::{
     io,
     sync::{Mutex, broadcast, mpsc},
-    time::{sleep, timeout},
+    time::{interval, sleep, timeout},
 };
 
 impl Session {
@@ -43,12 +43,13 @@ impl Session {
         connection: Connection,
         torrent_info: Arc<torrent::Info>,
         state: Arc<Mutex<torrent::State>>,
+        commit_tx: mpsc::Sender<CommitJob>,
         commit_rx: broadcast::Receiver<commit::Event>,
     ) -> Self {
         Self {
+            commit_tx,
             commit_rx,
             connection,
-            last_active: Instant::now(),
             torrent_info,
             state,
             current_piece: None,
@@ -61,11 +62,11 @@ impl Session {
     }
 
     pub async fn run(&mut self) -> Result<(), Error> {
+        
         loop {
             tokio::select! {
                 message = self.connection.read_message() => {
                     let message = message?;
-                    eprintln!("Got message : {message:?}");
                     let event = self.handle_message(message).await?;
                     self.handle_event(event).await?;
                 }
@@ -82,7 +83,7 @@ impl Session {
     async fn handle_commit_event(&mut self, event: commit::Event) -> session::Result<()> {
         match event {
             CommitEvent::PieceCommit(index) => self.connection.send(Message::Have(index)).await?,
-            CommitEvent::FailedCommit => todo!("Fokin failed?")
+            CommitEvent::FailedCommit => todo!("Fokin failed?"),
         }
         Ok(())
     }
@@ -119,16 +120,42 @@ impl Session {
         }
         let piece = self.current_piece.as_mut().unwrap();
         piece.update_buffer(index, offset, data.as_ref())?;
-        if piece.is_complete() {
-            if piece.verify(&self.torrent_info.pieces) {
-                eprintln!(
-                    "\x1b[35m\x1b[1mDownloaded piece : {index} + VERIFIED CHECKSUM!!!\x1b[0m"
-                );
-            }
-            self.current_piece = None;
-            todo!("Sender fucking needs a sender bro");
+        if piece.is_complete() && piece.verify(&self.torrent_info.pieces) {
+            eprintln!("\x1b[35m\x1b[1mDownloaded piece : {index} + VERIFIED CHECKSUM!!!\x1b[0m");
+            self.handle_completed_piece().await?;
         }
         self.pump_requests().await?;
+        Ok(())
+    }
+
+    /// Forwards downloaded piece to committer, leaving self.current_piece with None
+    async fn handle_completed_piece(&mut self) -> session::Result<()> {
+        let commit_job = CommitJob::from(
+            self.current_piece
+                // Self piece is none, from this point
+                .take()
+                .expect("Tried to take out a None Piece, got smacked"),
+        );
+
+        self.commit_tx.send(commit_job).await?;
+
+        if let Some(index) = self.reserve_interesting_piece().await {
+            self.current_piece = Some(Piece::new(index, self.torrent_info.piece_len(index)));
+            self.pump_requests().await?;
+        }
+        // Shutup, I'm having a break
+        // sleep(Duration::from_millis(1000)).await;
+
+        Ok(())
+    }
+
+    async fn try_reschedule(&mut self) -> session::Result<()> {
+        if self.current_piece.is_none() && !self.is_choking && self.am_interested {
+            if let Some(index) = self.reserve_interesting_piece().await {
+                self.current_piece = Some(Piece::new(index, self.torrent_info.piece_len(index)));
+                self.pump_requests().await?;
+            }
+        }
         Ok(())
     }
 
@@ -179,7 +206,9 @@ impl Session {
                 offset,
                 length,
             } => {
-                todo!("Can't handle requests yet")
+                // todo!("Can't handle requests yet")
+                eprintln!("\x1b[31mI fokin recieved a eprintln, wtf do i do\x1b[0m");
+                Err(Error::BadRequest)
             }
             Message::Have(x) => {
                 if self.bit_field.is_none() {
@@ -247,6 +276,8 @@ impl Session {
         None
     }
 
+    /// Only checks if I have to be interested in peer.
+    /// To reserve an interesting piece, use `reserve_interesting_piece()` instead
     async fn should_be_interested(&self) -> bool {
         let my_state = self.state.lock().await;
         my_state
@@ -264,7 +295,6 @@ impl Session {
         {
             let piece = Piece::new(index, self.torrent_info.piece_len(index));
             self.current_piece = Some(piece);
-            self.state.lock().await.add_in_flight(index);
             self.pump_requests().await?;
         }
         Ok(())
@@ -285,7 +315,7 @@ impl Session {
             let Some(piece_request) = current_piece.next_block() else {
                 break;
             };
-            eprintln!("{piece_request:?} SENT");
+            // eprintln!("{piece_request:?} SENT");
             self.connection.send(piece_request).await?;
         }
         Ok(())

@@ -12,9 +12,9 @@ async fn main() {
     let torrent = Arc::new(
         Metadata::from_file("test/debian.torrent").expect("Fucking failed at reading torrent"),
     );
-    
+
     let torrent_info: Arc<torrent::Info> = Arc::new(torrent.info_byte().try_into().unwrap());
-    let state: Arc<Mutex<State>> = Arc::new(Mutex::new(torrent.as_ref().try_into().unwrap()));
+    let state: Arc<Mutex<State>> = Arc::new(Mutex::new(State::load_or_new(&torrent).await));
     let peers: tracker::Response = tracker::load_cache_or_fetch_tracker(&torrent)
         .await
         .expect("Failed fetching tracker")
@@ -27,7 +27,7 @@ async fn main() {
 
     for (index, &peer) in peers.peers.iter().enumerate() {
         let handshake = Handshake::new(&torrent.info_hash);
-        let timeout_session = timeout(Duration::from_secs(5), {
+        let timeout_session = timeout(Duration::from_secs(10), {
             let connection_list = connection_list.clone();
             async move {
                 if let Ok(mut connection) = peer.connect().await {
@@ -51,23 +51,23 @@ async fn main() {
         "\x1b[32m{} peers responded, in total\x1b[0m",
         connection_list.clone().lock().await.len()
     );
+    
     let connection_list = {
         let mut guard = connection_list.lock().await;
         std::mem::take(&mut *guard)
     };
-
-    let (sender, _) = tokio::sync::broadcast::channel(4);
+    
     let mut join_set = JoinSet::new();
-    join_set.spawn(async move { committer.run().await.unwrap(); });
     let count = Arc::new(Mutex::new(0usize));
     for i in connection_list {
         join_set.spawn({
             let state = state.clone();
             let torrent_info = torrent_info.clone();
             let count = count.clone();
-            let receiver = sender.subscribe();
+            let receiver = committer.listener();
+            let sender = committer.sender().clone();
             async move {
-                let mut session = PeerSession::new(i, torrent_info, state, receiver);
+                let mut session = PeerSession::new(i, torrent_info, state, sender, receiver);
                 if let Err(x) = session.run().await {
                     eprintln!("\x1b[033mSession Error {x:?}\x1b[0m");
                 }
@@ -75,6 +75,10 @@ async fn main() {
             }
         });
     }
+    
+    join_set.spawn(async move {
+        committer.run().await.unwrap();
+    });
 
     join_set.join_all().await;
     eprintln!("All connections closed, {}, failed", count.lock().await);

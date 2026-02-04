@@ -16,7 +16,7 @@ pub type AtomicState = Arc<Mutex<State>>;
 pub struct State {
     downloaded: usize,
     pub(crate) bit_field: Vec<u8>,
-    
+    info_hash: InfoHash,
     #[serde(skip)]
     in_flight: HashSet<u32>,
     num_pieces: u32,
@@ -31,27 +31,24 @@ impl State {
         match Self::try_load(torrent).await {
             Ok(state) => state,
             Err(err) => {
-                eprintln!("Loading state failed, starting a fresh one | {err}");
+                eprintln!("\x1b[34mLoading state failed, starting a fresh one | {err}\x1b[0m");
                 Self::try_from(torrent).expect("Metadata must be in a valid format")
             }
         }
     }
 
-    
     pub(crate) async fn try_load(torrent: &Metadata) -> io::Result<Self> {
         let path = Self::path(&torrent.info_hash).await?;
         let mut file = File::open(path).await?;
         Self::from_file(&mut file).await
     }
-    
-   /// Consumes current state to give out atomic one; 
+
+    /// Consumes current `State` to give out atomic one, `Arc<State>`
     pub(crate) fn atomic(self) -> AtomicState {
         Arc::new(Mutex::new(self))
     }
-    
-    pub(crate)
 
-    async fn from_file(file: &mut File) -> Result<Self, io::Error> {
+    pub(crate) async fn from_file(file: &mut File) -> Result<Self, io::Error> {
         let mut vec = Vec::new();
         file.read_to_end(&mut vec).await?;
 
@@ -73,8 +70,8 @@ impl State {
         Ok(buffer)
     }
 
-    async fn save(&self, info_hash: &InfoHash) -> Result<(), io::Error> {
-        let path = Self::path(info_hash).await?;
+    pub(crate) async fn save(&self) -> Result<(), io::Error> {
+        let path = Self::path(&self.info_hash).await?;
         let tmp = path.with_extension("tmp");
 
         let bytes = self.to_bytes()?;
@@ -173,10 +170,12 @@ impl TryFrom<&Metadata> for State {
         };
         let bitfield_size = (num_pieces as f64 / 8.0).ceil() as usize;
         let bit_field = vec![0u8; bitfield_size];
+        let info_hash = metadata.info_hash;
 
         Ok(Self {
             downloaded,
             in_flight,
+            info_hash,
             num_pieces: num_pieces as u32,
             bit_field,
         })
@@ -223,25 +222,25 @@ mod tests {
         }
         result
     }
-    
+
     #[tokio::test]
     #[serial]
     async fn inflight_is_not_persisted() {
         with_temp_dir(|| async {
             let metadata = Metadata::fake();
-    
+
             let mut state = State::try_from(&metadata).unwrap();
             state.add_in_flight(2);
             state.mark_piece_complete(1);
-    
-            state.save(&metadata.info_hash).await.unwrap();
+
+            state.save().await.unwrap();
             let loaded = State::load_or_new(&metadata).await;
-    
+
             assert!(!loaded.is_in_flight(2));
             assert!(loaded.have_piece(1));
-        }).await;
+        })
+        .await;
     }
-
 
     #[tokio::test]
     #[serial]
@@ -267,7 +266,7 @@ mod tests {
         state.mark_piece_complete(4);
         state.mark_piece_complete(3);
         let loaded_state = with_temp_dir(|| async {
-            state.save(&metadata.info_hash).await.unwrap();
+            state.save().await.unwrap();
 
             State::load_or_new(&metadata).await
         })
@@ -278,19 +277,22 @@ mod tests {
 
         assert_eq!(loaded_state.completed_pieces(), 2);
     }
-    
+
     #[tokio::test]
     #[serial]
     async fn reading_a_corrupted_state() {
         let metadata = Metadata::fake();
         let state = with_temp_dir(|| async {
             let path = State::path(&metadata.info_hash).await.unwrap();
-            
-            fs::write(path, b"Definately not a valid cbor").await.unwrap();
-            
+
+            fs::write(path, b"Definately not a valid cbor")
+                .await
+                .unwrap();
+
             State::load_or_new(&metadata).await
-        }).await;
-        
+        })
+        .await;
+
         assert!(!state.is_complete());
         assert_eq!(state.completed_pieces(), 0);
     }
@@ -386,7 +388,7 @@ mod tests {
             num_pieces: 14,
             ..Default::default()
         };
-        
+
         state.in_flight.insert(2);
         for _ in 0..20 {
             state.mark_piece_complete(2);

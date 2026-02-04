@@ -1,6 +1,6 @@
 use std::collections::{HashSet, VecDeque};
 
-use bytes::BytesMut;
+use bytes::{Bytes, BytesMut};
 use rand::Fill;
 
 use sha1::{Digest, Sha1};
@@ -58,8 +58,14 @@ impl Piece {
     }
 
 
-    /// Returns a Some(Message::Request) of a Piece block
+    /// Returns a `Some(Message::Request)` of a Piece block\
     /// Returns None up when when pipeline's on-fly capacity is reached
+    /// ## Example
+    /// ```rs
+    /// while let Some(request) = piece.next_block() {
+    ///         /* Request here maybe */
+    /// }
+    /// ```
     pub fn next_block(&mut self) -> Option<Message> {
         if let Some(Block { offset, length }) = self.pending.pop_front() {
             self.on_fly.insert(offset);
@@ -70,6 +76,11 @@ impl Piece {
             });
         }
         None
+    }
+    
+    /// Loses ownership of the buffer, also Piece gets moved
+    pub fn owned_buffer(self) -> Bytes {
+        self.buffer.freeze()
     }
 
     pub fn can_request_more(&self) -> bool {

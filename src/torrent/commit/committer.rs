@@ -22,15 +22,20 @@ pub struct Committer {
 
 impl Committer {
     pub fn new(state: Arc<Mutex<torrent::State>>, info_hash: InfoHash, info: Arc<Info>) -> Self {
-        let (sender, reciever) = mpsc::channel(4);
+        let (sender, reciever) = mpsc::channel(8);
+        let (broadcast, _) = broadcast::channel(16);
         Self {
             sender,
             reciever,
             state,
             info_hash,
             info,
-            broadcast : broadcast::Sender::new(3)
+            broadcast,
         }
+    }
+    
+    pub fn listener (&self) -> broadcast::Receiver<commit::Event> {
+        self.broadcast.subscribe()
     }
 
     /// Gives out a cloned copy of sender
@@ -78,8 +83,14 @@ impl Committer {
         file.seek(SeekFrom::Start(absolute_index)).await?;
 
         file.write_all(&job.bytes).await?;
-        self.state.lock().await.mark_piece_complete(job.index);
-        self.state.lock().await.remove_in_flight(job.index);
+        Ok(())
+    }
+
+
+    pub async fn update_save_state(& self, index : u32) -> commit::Result<()> {
+        let mut state = self.state.lock().await;
+        state.mark_piece_complete(index);
+        state.save().await?;
         Ok(())
     }
 
@@ -87,6 +98,7 @@ impl Committer {
         self.init_storage().await?;
 
         while let Some(job) = self.reciever.recv().await {
+            eprintln!("\x1b[33mCOMMITTING PIECE : {}\x1b[0m", job.index);
             let mut attempts = 4;
             while let Err(err) = self.commit(&job).await
                 && attempts > 0
@@ -97,10 +109,12 @@ impl Committer {
             }
             if attempts > 0 {
                 self.broadcast.send(Event::PieceCommit(job.index))?;
+                self.update_save_state(job.index).await?;
             } else {
                 self.broadcast.send(Event::FailedCommit)?;
             }
         }
+        eprintln!("\x1b[31mCommitter EXITing, all senders dropped");
         Ok(())
     }
 }

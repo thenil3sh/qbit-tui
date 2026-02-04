@@ -1,8 +1,10 @@
-use std::{fmt::{Debug, Display}, ops::Deref};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use std::{
+    fmt::{Debug, Display},
+    ops::Deref,
+};
 
-
-#[derive(Default, Deserialize, Clone, Copy)]
+#[derive(Default, Deserialize, Clone, Copy, Serialize)]
 pub struct InfoHash {
     hash: [u8; 20],
 }
@@ -15,7 +17,14 @@ impl From<[u8; 20]> for InfoHash {
 
 impl Display for InfoHash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.hash.iter().map(|x| format!("{x:0x}")).collect::<String>())
+        write!(
+            f,
+            "{}",
+            self.hash
+                .iter()
+                .map(|x| format!("{x:0x}"))
+                .collect::<String>()
+        )
     }
 }
 
@@ -36,7 +45,7 @@ impl InfoHash {
 }
 
 impl Deref for InfoHash {
-    type Target = [u8;20];
+    type Target = [u8; 20];
     fn deref(&self) -> &Self::Target {
         &self.hash
     }

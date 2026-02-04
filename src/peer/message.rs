@@ -73,7 +73,7 @@ impl Message {
             6 => todo!("`Request`, isn't implemented yet"),
             7 => Self::handle_piece(payload),
             8 => todo!("`Cancel`, isn't implemented yet"),
-            _ => Err(Error::new(ErrorKind::InvalidData, "Invalid Id")),
+            x => Err(Error::new(ErrorKind::InvalidData, format!("Invalid Id : {x}"))),
         }
     }
 

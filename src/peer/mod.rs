@@ -13,6 +13,7 @@ pub use connection::Connection as Connection;
 pub use message::*;
 pub use session::Session as PeerSession;
 pub(crate) use session::Error as SessionError;
+pub(crate) use session::Piece;
 
 use crate::peer::id::Id;
 

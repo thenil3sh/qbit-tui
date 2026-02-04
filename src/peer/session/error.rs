@@ -1,4 +1,5 @@
-use crate::peer::session::piece;
+use crate::{peer::session::piece, torrent::CommitJob};
+use tokio::sync::mpsc::error::SendError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -11,7 +12,9 @@ pub enum Error {
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error(transparent)]
-    PieceError(#[from] piece::Error)
+    PieceError(#[from] piece::Error),
+    #[error(transparent)]
+    CommitError(#[from] SendError<CommitJob>)
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
