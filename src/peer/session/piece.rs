@@ -5,7 +5,7 @@ use rand::Fill;
 
 use sha1::{Digest, Sha1};
 
-use crate::peer::{Message, session::piece};
+use crate::{peer::{session::{self, piece}, Message, PeerSession as Session}, torrent::CommitJob};
 
 pub struct Piece {
     index: u32,
@@ -21,8 +21,6 @@ pub struct Piece {
 }
 
 impl Piece {
-
-
     pub fn new(index: u32, piece_len: u32) -> Self {
         let mut offset = 0;
         let max_block_len = 16384; // HARD CODED, i'll take care of it
@@ -183,6 +181,29 @@ impl Piece {
     pub fn is_complete(&self) -> bool {
         let expected_blocks = self.total_blocks();
         return expected_blocks == self.received.len() as u32 && self.on_fly.is_empty();
+    }
+}
+
+impl Session {
+    /// Forwards downloaded piece to committer, leaving self.current_piece with None
+    pub(crate) async fn handle_completed_piece(&mut self) -> session::Result<()> {
+        let commit_job = CommitJob::from(
+            self.current_piece
+                // Self piece is none, from this point
+                .take()
+                .expect("Tried to take out a None Piece, got smacked"),
+        );
+
+        self.commit_tx.send(commit_job).await?;
+
+        if let Some(index) = self.reserve_interesting_piece().await {
+            self.current_piece = Some(Piece::new(index, self.torrent_info.piece_len(index)));
+            self.pump_requests().await?;
+        }
+        // Shutup, I'm having a break
+        // sleep(Duration::from_millis(1000)).await;
+
+        Ok(())
     }
 }
 

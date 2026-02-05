@@ -1,0 +1,149 @@
+use std::io;
+
+use bytes::Bytes;
+
+use crate::peer::{
+    self, Message, PeerSession as Session, Piece, SessionError as Error,
+    session::{self, Event},
+};
+
+impl Session {
+    pub(crate) async fn handle_event(
+        &mut self,
+        event: peer::session::Event,
+    ) -> session::Result<()> {
+        match event {
+            Event::BitFieldUpdated => self.handle_bitfield().await?,
+            Event::UnchokedMe => self.handle_unchoke().await?,
+            Event::Have(x) => self.handle_have(x).await?,
+            Event::PieceRecieved {
+                index,
+                offset,
+                data,
+            } => self.handle_piece(index, offset, data).await?,
+            Event::ChokedMe => self.handle_choked_me().await?,
+            Event::KeepAlive => {}
+            x => eprintln!("\x1b[034mUnimplemented event recieved : {x:?}\x1b[0m"),
+        }
+        Ok(())
+    }
+
+    async fn handle_bitfield(&mut self) -> Result<(), Error> {
+        if self.should_be_interested().await {
+            self.am_interested = true;
+            self.connection.send(Message::Interested).await?;
+        }
+        Ok(())
+    }
+
+    /// When unchoked, I'm ready to request piece from peer
+    /// Because each peer is assigned a piece here, I'll pipeline the block requests
+    async fn handle_unchoke(&mut self) -> session::Result<()> {
+        if self.am_interested
+            && let Some(index) = self.reserve_interesting_piece().await
+        {
+            let piece = Piece::new(index, self.torrent_info.piece_len(index));
+            self.current_piece = Some(piece);
+            self.pump_requests().await?;
+        }
+        Ok(())
+    }
+
+    /// Have is the piece a peer wants to tell that they have.
+    /// It's possible to be interested in that very piece, moreover, it's worth updating their bitfield to keep track of their pieces.
+    ///
+    /// # Error
+    /// Error may occur in the following cases
+    /// - When index is greater than bitfield's index
+    /// - Pipelining request to TcpStream
+    async fn handle_have(&mut self, index: u32) -> Result<(), Error> {
+        self.update_bitfield(index)?;
+
+        if !self.is_choking && self.current_piece.is_none() {
+            if let Some(index) = self.reserve_interesting_piece().await {
+                self.current_piece = Some(Piece::new(index, self.torrent_info.piece_len(index)));
+                self.pump_requests().await?;
+            }
+        }
+        Ok(())
+    }
+
+    async fn handle_choked_me(&mut self) -> io::Result<()> {
+        self.is_choking = true;
+        if let Some(piece) = self.current_piece.as_ref() {
+            self.state.lock().await.remove_in_flight(piece.index());
+            // todo!("Need some rework here")
+        }
+        Ok(())
+    }
+
+    async fn handle_piece(&mut self, index: u32, offset: u32, data: Bytes) -> Result<(), Error> {
+        if self.current_piece.is_none() {
+            return Err(Error::ProtocolViolation);
+        }
+        let piece = self.current_piece.as_mut().unwrap();
+        piece.update_buffer(index, offset, data.as_ref())?;
+        if piece.is_complete() && piece.verify(&self.torrent_info.pieces) {
+            eprintln!("\x1b[35m\x1b[1mDownloaded piece : {index} + VERIFIED CHECKSUM!!!\x1b[0m");
+            self.handle_completed_piece().await?;
+        }
+        self.pump_requests().await?;
+        Ok(())
+    }
+    
+    pub(crate) async fn handle_message(
+        &mut self,
+        message: Message,
+    ) -> Result<session::Event, session::Error> {
+        match message {
+            Message::Bitfield(x) => {
+                self.bit_field = Some(x.into());
+                Ok(Event::BitFieldUpdated)
+            }
+            Message::Choke => {
+                self.is_choking = true;
+                Ok(Event::ChokedMe)
+            }
+            Message::Unchoke => {
+                self.is_choking = false;
+                Ok(Event::UnchokedMe)
+            }
+            Message::Request {
+                index,
+                offset,
+                length,
+            } => {
+                // todo!("Can't handle requests yet")
+                eprintln!("\x1b[31mI fokin recieved a eprintln, wtf do i do\x1b[0m");
+                Err(Error::BadRequest)
+            }
+            Message::Have(x) => {
+                if self.bit_field.is_none() {
+                    let len = self.state.lock().await.num_pieces() / 8;
+                    self.bit_field = Some(vec![0u8; len as usize]);
+                }
+                self.update_bitfield(x)?;
+                Ok(Event::Have(x))
+            }
+            Message::Interested => {
+                self.is_interested = true;
+                Ok(Event::PeerInterested)
+            }
+            Message::Piece {
+                index,
+                offset,
+                data,
+            } => Ok(Event::PieceRecieved {
+                index,
+                offset,
+                data,
+            }),
+            Message::KeepAlive => Ok(Event::KeepAlive), // keeps alive, lol, see Self::run()
+            Message::NotInterested => {
+                self.is_interested = false;
+                Ok(Event::PeerNotInterested)
+            }
+            Message::UnexpectedId(_) => return Err(Error::ProtocolViolation),
+        }
+    }
+}
