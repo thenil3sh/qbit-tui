@@ -9,5 +9,7 @@ pub enum Event {
     PieceRecieved { index : u32, offset : u32, data : Bytes },
     Have(u32),
     KeepAlive,
-    PeerNotInterested
+    PeerNotInterested,
+    PieceRequested { index : u32, offset : u32, length : u32 },
+    Ignore,
 }

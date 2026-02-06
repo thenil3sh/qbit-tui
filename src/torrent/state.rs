@@ -126,7 +126,7 @@ impl State {
         }
     }
 
-    fn have_piece(&self, index: u32) -> bool {
+    pub(crate) fn have_piece(&self, index: u32) -> bool {
         let byte_index = index as usize / 8;
         let to_shift = index as usize % 8;
 

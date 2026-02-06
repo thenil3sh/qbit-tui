@@ -1,6 +1,12 @@
-use std::io;
+use std::io::{self, SeekFrom};
 
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
+use rand::rand_core::le;
+use ratatui::layout::Offset;
+use tokio::{
+    fs,
+    io::{AsyncReadExt, AsyncSeekExt},
+};
 
 use crate::peer::{
     self, Message, PeerSession as Session, Piece, SessionError as Error,
@@ -21,8 +27,24 @@ impl Session {
                 offset,
                 data,
             } => self.handle_piece(index, offset, data).await?,
+            Event::PeerInterested => {
+                // Yea event driven unchoke
+                self.connection.send(Message::Unchoke).await?;
+                eprintln!("SESSION : {} | SENT Unchoke", self.connection.peer.ip);
+            }
             Event::ChokedMe => self.handle_choked_me().await?,
             Event::KeepAlive => {}
+            Event::PieceRequested {
+                index,
+                offset,
+                length,
+            } => {
+                self.handle_piece_request(index, offset, length).await?;
+                panic!("SENT A FUCKING PIECE");
+            },
+            Event::Ignore => {
+                eprintln!("\n\n\n\nDUH\n\n\n\n");
+            }
             x => eprintln!("\x1b[034mUnimplemented event recieved : {x:?}\x1b[0m"),
         }
         Ok(())
@@ -33,6 +55,12 @@ impl Session {
             self.am_interested = true;
             self.connection.send(Message::Interested).await?;
         }
+        Ok(())
+    }
+    
+    pub(crate) async fn send_bitfield(&mut self) -> session::Result<()> {
+        let message = Message::Bitfield(self.state.lock().await.bit_field.clone().into());
+        self.connection.send(message).await?;
         Ok(())
     }
 
@@ -68,6 +96,44 @@ impl Session {
         Ok(())
     }
 
+    async fn read_block(&mut self, index: u32, offset: u32, length: u32) -> io::Result<Bytes> {
+        let length = length as usize;
+        let path = self.torrent_info.file_path();
+        let mut file = fs::OpenOptions::new().read(true).open(path).await?;
+
+        let absolute_index = index * self.torrent_info.piece_length + offset;
+
+        file.seek(SeekFrom::Start(absolute_index as u64)).await?;
+
+        let mut buffer = BytesMut::with_capacity(length as usize);
+        buffer.resize(length as usize, 0);
+
+        file.read_exact(&mut buffer).await?;
+
+        Ok(buffer.freeze())
+    }
+
+    async fn handle_piece_request(
+        &mut self,
+        index: u32,
+        offset: u32,
+        length: u32,
+    ) -> session::Result<()> {
+        if self.is_valid_block(index, offset, length).await {
+            let data = self.read_block(index, offset, length).await?;
+            self.connection
+                .send(Message::Piece {
+                    index,
+                    offset,
+                    data,
+                })
+                .await?;
+        } else {
+            // I'll see what to do
+        }
+        Ok(())
+    }
+
     async fn handle_choked_me(&mut self) -> io::Result<()> {
         self.is_choking = true;
         if let Some(piece) = self.current_piece.as_ref() {
@@ -90,7 +156,7 @@ impl Session {
         self.pump_requests().await?;
         Ok(())
     }
-    
+
     pub(crate) async fn handle_message(
         &mut self,
         message: Message,
@@ -113,9 +179,14 @@ impl Session {
                 offset,
                 length,
             } => {
-                // todo!("Can't handle requests yet")
-                eprintln!("\x1b[31mI fokin recieved a eprintln, wtf do i do\x1b[0m");
-                Err(Error::BadRequest)
+                if !self.is_valid_block(index, offset, length).await {
+                    return Ok(Event::Ignore);
+                }
+                Ok(Event::PieceRequested {
+                    index,
+                    offset,
+                    length,
+                })
             }
             Message::Have(x) => {
                 if self.bit_field.is_none() {

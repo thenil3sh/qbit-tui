@@ -1,8 +1,7 @@
-use crate::torrent::RawInfo;
+use crate::torrent::{info_hash, RawInfo};
 use crate::torrent::{Info, InfoHash};
 use anyhow::{anyhow, bail};
 use bendy::decoding::Object::Dict;
-use bytes::Bytes;
 use serde::Deserialize;
 use serde_bytes::ByteBuf;
 use sha1::{Digest, Sha1};
@@ -39,7 +38,8 @@ impl Metadata {
         metadata.info_hash = Self::generate_info_hash(&metadata.info_byte)
             .unwrap()
             .into();
-
+        /////////////// Shitty ahhh
+        metadata.info.info_hash = metadata.info_hash;
         Ok(metadata)
     }
 
@@ -86,6 +86,7 @@ impl Metadata {
                 length,
                 name: "fake".to_string(),
                 piece_length,
+                info_hash : InfoHash::default(),
                 pieces: ByteBuf::from(vec![0u8; 20]),
             },
             info_hash: InfoHash::from([0u8; 20]),

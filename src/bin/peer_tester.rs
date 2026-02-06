@@ -5,7 +5,7 @@ use qbit::{
     torrent::{self, Committer, Metadata, State},
     tracker::{self},
 };
-use tokio::{sync::Mutex, task::JoinSet, time::timeout};
+use tokio::{io::join, sync::Mutex, task::JoinSet, time::timeout};
 
 #[tokio::main]
 async fn main() {
@@ -32,7 +32,7 @@ async fn main() {
             async move {
                 if let Ok(mut connection) = peer.connect().await {
                     if let Ok(()) = connection.handshake(handshake).await {
-                        eprintln!("Peer {index} handshake success!!");
+                        eprintln!("Peer {index:2} handshake success!!");
                         let mut connection_list = connection_list.lock().await;
                         connection_list.push(connection);
                     }

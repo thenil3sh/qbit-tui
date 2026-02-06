@@ -1,14 +1,27 @@
+use dirs::data_dir;
 use serde::Deserialize;
 use serde_bytes::ByteBuf;
-use std::{fmt::Debug, ops::Deref, sync::Arc};
+use std::{fmt::Debug, ops::Deref, path::PathBuf, sync::Arc};
+
+use crate::torrent::InfoHash;
 
 #[derive(Deserialize)]
 pub struct Info {
-    pub length: u32,
-    pub name: String,
+    pub(crate) name: String,
     #[serde(rename = "piece length")]
-    pub piece_length: u32,
-    pub pieces: ByteBuf,
+    pub(crate) piece_length: u32,
+    #[serde(skip)]
+    pub(crate) info_hash: InfoHash,
+    pub(crate) pieces: ByteBuf,
+    
+    pub(crate) length: Option<u32>,
+    pub(crate) files : Option<Vec<InfoFile>>,
+}
+
+#[derive(Deserialize)]
+struct InfoFile {
+    length : u32,
+    path : Vec<String>
 }
 
 pub type AtomicInfo = Arc<Info>;
@@ -28,6 +41,19 @@ impl Info {
     /// Consumes info and gives out Arc<Info>
     pub fn atomic(self) -> AtomicInfo {
         Arc::new(self)
+    }
+
+    fn base_dir(&self) -> PathBuf {
+        data_dir()
+            .expect("Couldn't find data directory")
+            .join(self.info_hash.to_string())
+            .to_path_buf()
+    }
+
+    pub(crate) fn file_path(&self) -> PathBuf {
+        let mut path = self.base_dir().join(self.name.as_str());
+        path.set_extension("tmp");
+        path
     }
 }
 

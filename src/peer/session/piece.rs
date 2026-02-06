@@ -1,9 +1,10 @@
-use std::collections::{HashSet, VecDeque};
+use std::{collections::{HashSet, VecDeque}, time::Duration};
 
 use bytes::{Bytes, BytesMut};
 use rand::Fill;
 
 use sha1::{Digest, Sha1};
+use tokio::time::sleep;
 
 use crate::{peer::{session::{self, piece}, Message, PeerSession as Session}, torrent::CommitJob};
 
@@ -196,12 +197,8 @@ impl Session {
 
         self.commit_tx.send(commit_job).await?;
 
-        if let Some(index) = self.reserve_interesting_piece().await {
-            self.current_piece = Some(Piece::new(index, self.torrent_info.piece_len(index)));
-            self.pump_requests().await?;
-        }
         // Shutup, I'm having a break
-        // sleep(Duration::from_millis(1000)).await;
+        sleep(Duration::from_millis(50)).await;
 
         Ok(())
     }

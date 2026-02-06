@@ -11,7 +11,7 @@ use crate::peer::{session, Handshake, Message, Peer};
 #[allow(unused)] ///////////////////// For nowww
 #[derive(Debug)]
 pub struct Connection {
-    peer: Peer,
+    pub(crate) peer: Peer,
     stream: TcpStream,
 }
 
@@ -39,8 +39,9 @@ impl Connection {
         }
         let id = self.stream.read_u8().await?;
         let payload = Self::scrap_payload(&mut self.stream, length as usize).await?;
-
-        Ok(Message::decode(id, payload)?)
+        let message = Message::decode(id, payload)?;
+        eprintln!("\x1b[30mSESSION {} | Recieved : {:?}\x1b[0m", self.peer.ip, message);
+        Ok(message)
     }
 
     async fn scrap_payload(stream: &mut TcpStream, len: usize) -> io::Result<Bytes> {
@@ -54,7 +55,7 @@ impl Connection {
     /// Writes the encoded message to the TCP stream
     pub(crate) async fn send(&mut self, message : Message) -> Result<(), session::Error> {
         self.stream.write_all(&message.encode()).await?;
-        println!("Sent {message:?}");
+        println!("SESSION {} | Recieved : {:?}", self.peer.ip, message);
         Ok(())
     }
 }

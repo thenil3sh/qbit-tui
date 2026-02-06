@@ -3,6 +3,8 @@ use crate::peer::{session::{self, Error}, PeerSession as Session};
 impl Session {
     /// Looks for a piece in peer's bitfield, if there's anything interesting, it'll reserve it, then return the index to user
     /// Else it responds with None
+    /// > NOTE: Global piece reservation is temporary.
+    /// > This will be removed once upload + choking are stable
     pub(crate) async fn reserve_interesting_piece(&self) -> Option<u32> {
         let mut state = self.state.lock().await;
         for (byte_idx, (peer, mine)) in self
@@ -36,7 +38,7 @@ impl Session {
         }
         None
     }
-    
+
     /// Update peer's bitfield, may help tracking us tracking our interesting states
     pub(crate) fn update_bitfield(&mut self, index: u32) -> session::Result<()> {
         let piece = index as usize;
@@ -51,7 +53,7 @@ impl Session {
         self.bit_field.as_mut().unwrap()[byte] |= mask;
         Ok(())
     }
-    
+
     /// Only checks if I have to be interested in peer.
     /// To reserve an interesting piece, use `reserve_interesting_piece()` instead
     pub(crate) async fn should_be_interested(&self) -> bool {
@@ -61,5 +63,19 @@ impl Session {
             .iter()
             .zip(self.bit_field.as_ref().unwrap().iter())
             .any(|(mine, peer)| !mine & peer != 0)
+    }
+
+    pub(crate) async fn is_valid_block(&self, index : u32, offset : u32, length : u32) -> bool {
+        if self.am_choking {
+            return false;
+        }
+        {
+            let piece_len = self.torrent_info.piece_len(index);
+            let state = self.state.lock().await;
+            if !state.have_piece(index) || piece_len < offset + length {
+                return false;
+            }
+        }
+        return true;
     }
 }
