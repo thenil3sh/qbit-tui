@@ -1,5 +1,5 @@
-use crate::torrent::{info_hash, RawInfo};
 use crate::torrent::{Info, InfoHash};
+use crate::torrent::{RawInfo, info_hash};
 use anyhow::{anyhow, bail};
 use bendy::decoding::Object::Dict;
 use serde::Deserialize;
@@ -71,8 +71,7 @@ impl Metadata {
         }
         bail!("Invalid torrent format : missing info dictionary")
     }
-    
-    
+
     /// Gives out fake metadata, (only for tests)
     pub(crate) fn fake() -> Self {
         let piece_length = 16 * 1024;
@@ -86,7 +85,7 @@ impl Metadata {
                 length,
                 name: "fake".to_string(),
                 piece_length,
-                info_hash : InfoHash::default(),
+                info_hash: InfoHash::default(),
                 pieces: ByteBuf::from(vec![0u8; 20]),
             },
             info_hash: InfoHash::from([0u8; 20]),

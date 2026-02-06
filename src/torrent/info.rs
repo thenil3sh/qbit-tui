@@ -14,8 +14,7 @@ pub struct Info {
     pub(crate) info_hash: InfoHash,
     pub(crate) pieces: ByteBuf,
     
-    pub(crate) length: Option<u32>,
-    pub(crate) files : Option<Vec<InfoFile>>,
+    pub(crate) length: u32,
 }
 
 #[derive(Deserialize)]
