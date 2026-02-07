@@ -2,7 +2,7 @@ use std::{sync::Arc, time::Duration};
 
 use qbit::{
     peer::{Handshake, PeerSession},
-    torrent::{self, Committer, Metadata, State},
+    torrent::{self, info::NormalisedInfo, Committer, FileLayout, Metadata, State},
     tracker::{self},
 };
 use tokio::{io::join, sync::Mutex, task::JoinSet, time::timeout};
@@ -15,6 +15,8 @@ async fn main() {
 
     let torrent_info: Arc<torrent::Info> = Arc::new(torrent.info_byte().try_into().unwrap());
     let state: Arc<Mutex<State>> = Arc::new(Mutex::new(State::load_or_new(&torrent).await));
+    let info = NormalisedInfo::try_from(&torrent.info).unwrap().atomic();
+    let file_layout = Arc::new(FileLayout::try_from(info.as_ref()).unwrap());
     let peers: tracker::Response = tracker::load_cache_or_fetch_tracker(&torrent)
         .await
         .expect("Failed fetching tracker")
@@ -23,7 +25,7 @@ async fn main() {
 
     let connection_list = Arc::new(Mutex::new(Vec::new()));
     let mut join_set = JoinSet::new();
-    let mut committer = Committer::new(state.clone(), torrent.info_hash, torrent_info.clone());
+    let mut committer = Committer::new(state.clone(), torrent.info_hash, info.clone(), file_layout);
 
     for (index, &peer) in peers.peers.iter().enumerate() {
         let handshake = Handshake::new(&torrent.info_hash);

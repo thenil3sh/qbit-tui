@@ -39,7 +39,7 @@ impl Session {
                 offset,
                 length,
             } => {
-                self.handle_piece_request(index, offset, length).await?;
+                // self.handle_piece_request(index, offset, length).await?;
                 panic!("SENT A FUCKING PIECE");
             },
             Event::Ignore => {
@@ -96,43 +96,44 @@ impl Session {
         Ok(())
     }
 
-    async fn read_block(&mut self, index: u32, offset: u32, length: u32) -> io::Result<Bytes> {
-        let length = length as usize;
-        let path = self.torrent_info.file_path();
-        let mut file = fs::OpenOptions::new().read(true).open(path).await?;
+    // todo!();
+    // async fn read_block(&mut self, index: u32, offset: u32, length: u32) -> io::Result<Bytes> {
+    //     let length = length as usize;
+    //     let path = self.torrent_info.file_path();
+    //     let mut file = fs::OpenOptions::new().read(true).open(path).await?;
 
-        let absolute_index = index * self.torrent_info.piece_length + offset;
+    //     let absolute_index = index * self.torrent_info.piece_length + offset;
 
-        file.seek(SeekFrom::Start(absolute_index as u64)).await?;
+    //     file.seek(SeekFrom::Start(absolute_index as u64)).await?;
 
-        let mut buffer = BytesMut::with_capacity(length as usize);
-        buffer.resize(length as usize, 0);
+    //     let mut buffer = BytesMut::with_capacity(length as usize);
+    //     buffer.resize(length as usize, 0);
 
-        file.read_exact(&mut buffer).await?;
+    //     file.read_exact(&mut buffer).await?;
 
-        Ok(buffer.freeze())
-    }
+    //     Ok(buffer.freeze())
+    // }
 
-    async fn handle_piece_request(
-        &mut self,
-        index: u32,
-        offset: u32,
-        length: u32,
-    ) -> session::Result<()> {
-        if self.is_valid_block(index, offset, length).await {
-            let data = self.read_block(index, offset, length).await?;
-            self.connection
-                .send(Message::Piece {
-                    index,
-                    offset,
-                    data,
-                })
-                .await?;
-        } else {
-            // I'll see what to do
-        }
-        Ok(())
-    }
+    // async fn handle_piece_request(
+    //     &mut self,
+    //     index: u32,
+    //     offset: u32,
+    //     length: u32,
+    // ) -> session::Result<()> {
+    //     if self.is_valid_block(index, offset, length).await {
+    //         let data = self.read_block(index, offset, length).await?;
+    //         self.connection
+    //             .send(Message::Piece {
+    //                 index,
+    //                 offset,
+    //                 data,
+    //             })
+    //             .await?;
+    //     } else {
+    //         // I'll see what to do
+    //     }
+    //     Ok(())
+    // }
 
     async fn handle_choked_me(&mut self) -> io::Result<()> {
         self.is_choking = true;

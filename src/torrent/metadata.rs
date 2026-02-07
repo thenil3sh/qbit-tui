@@ -38,8 +38,7 @@ impl Metadata {
         metadata.info_hash = Self::generate_info_hash(&metadata.info_byte)
             .unwrap()
             .into();
-        /////////////// Shitty ahhh
-        metadata.info.info_hash = metadata.info_hash;
+        
         Ok(metadata)
     }
 

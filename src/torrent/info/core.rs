@@ -3,60 +3,54 @@ use serde::Deserialize;
 use serde_bytes::ByteBuf;
 use std::{fmt::Debug, ops::Deref, path::PathBuf, sync::Arc};
 
-use crate::torrent::InfoHash;
+use crate::torrent::{Committer, InfoHash, Metadata, State};
 
 #[derive(Deserialize)]
 pub struct Info {
     pub(crate) name: String,
     #[serde(rename = "piece length")]
     pub(crate) piece_length: u32,
+
+    pub(crate) pieces: ByteBuf,
+
     #[serde(skip)]
     pub(crate) info_hash: InfoHash,
-    pub(crate) pieces: ByteBuf,
-    
-    pub(crate) length : Option<u32>,
-    pub(crate) files : Option<Vec<InfoFile>>
+
+    pub(crate) length: Option<u32>,
+    pub(crate) files: Option<Vec<InfoFile>>,
 }
 
 #[derive(Deserialize, Clone)]
 pub(crate) struct InfoFile {
-    pub length : u32,
-    pub path : Vec<String>
+    pub length: u64,
+    pub path: Vec<String>,
 }
 
 pub type AtomicInfo = Arc<Info>;
 
 impl Info {
-    // pub fn piece_len(&self, index: u32) -> u32 {
-    //     let num_pieces = self.pieces.len() as u32 / 20;
-    //     match index {
-    //         x if num_pieces <= x => {
-    //             panic!("Index out of bounds, length is {num_pieces}, but found {x}")
-    //         }
-    //         x if x == num_pieces - 1 => self.length % self.piece_length,
-    //         _ => self.piece_length,
-    //     }
-    //     match index {
-    //         x if num_pieces.len
-    //     }
-    // }
+    pub fn piece_len(&self, index: u32) -> u32 {
+        let num_pieces = self.pieces.len() as u32 / 20;
+        if num_pieces <= index {
+            panic!("Index out of bounds, length is {num_pieces}, but found {index:?}");
+        }
+        let total_length = self.total_length();
+        let start = index as u64 * self.piece_length as u64;
+        let end = (start + self.piece_length as u64).min(total_length);
+        (end - start) as u32
+    }
+
+    pub fn total_length(&self) -> u64 {
+        match (self.length, self.files.as_ref()) {
+            (Some(length), None) => length as u64,
+            (None, Some(files)) => files.iter().map(|f| f.length).sum(),
+            (_, _) => panic!("Invalid torrent file"),
+        }
+    }
 
     /// Consumes info and gives out Arc<Info>
     pub fn atomic(self) -> AtomicInfo {
         Arc::new(self)
-    }
-
-    fn base_dir(&self) -> PathBuf {
-        data_dir()
-            .expect("Couldn't find data directory")
-            .join(self.info_hash.to_string())
-            .to_path_buf()
-    }
-
-    pub(crate) fn file_path(&self) -> PathBuf {
-        let mut path = self.base_dir().join(self.name.as_str());
-        path.set_extension("tmp");
-        path
     }
 }
 

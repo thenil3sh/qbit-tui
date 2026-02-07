@@ -17,7 +17,7 @@ pub fn get_url(torrent: &Torrent) -> String {
         6881,
         0,
         0,
-        torrent.info.length
+        torrent.info.total_length(),
     )
 }
 

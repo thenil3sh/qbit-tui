@@ -1,41 +1,49 @@
 use serde_bytes::ByteBuf;
-use std::sync::Arc;
+use std::{io, path::PathBuf, sync::Arc};
 
-use crate::torrent::{self, Info, info::InfoFile};
+use crate::torrent::{
+    self, Info, InfoHash,
+    info::{FileMode, InfoFile},
+};
 
 pub struct NormalisedInfo {
     pub name: String,
-    piece_length: u32,
+    pub(crate) piece_length: u32,
     pub pieces: ByteBuf,
+    
+    pub info_hash : InfoHash,
 
     pub total_length: u64,
     pub file_mode: FileMode,
 }
 
-pub enum FileMode {
-    Single { length: u64 },
-    Multiple { files: Vec<InfoFile> },
-}
-
 impl NormalisedInfo {
-    fn piece_len(&self, index: u32) -> u32 {
+    pub fn piece_len(&self, index: u32) -> u32 {
         let start = index as u64 * self.piece_length as u64;
         let end = (start + self.piece_length as u64).min(self.total_length);
         (end - start) as u32
     }
 
     /// Consumes `NormalizedInfo` to give an Arc<Self>
-    fn atomic(self) -> Arc<Self> {
+    pub fn atomic(self) -> Arc<Self> {
         Arc::new(self)
     }
 
-    fn piece_hash(&self, index: u32) -> &[u8; 20] {
+    pub fn piece_hash(&self, index: u32) -> &[u8; 20] {
         let start = index as usize * 20;
         let end = start + 20;
         self.pieces[start..end].try_into().expect(&format!(
             "InfoHash has unexpected size {size}, but 20 was expected",
             size = end - start
         ))
+    }
+
+    pub fn base_dir(&self) -> torrent::Result<PathBuf> {
+        let base_dir = dirs::data_dir()
+            .ok_or(torrent::Error::DataDirMissing)?
+            .join(".qbit")
+            .join(self.info_hash.to_string());
+        Ok(base_dir)
     }
 }
 
@@ -68,7 +76,7 @@ impl TryFrom<&Info> for NormalisedInfo {
             name: info.name.clone(),
             piece_length: info.piece_length,
             pieces: info.pieces.clone(),
-
+            info_hash : info.info_hash,
             total_length,
             file_mode,
         })
