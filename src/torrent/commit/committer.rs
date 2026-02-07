@@ -1,27 +1,22 @@
 use super::job::Job;
-use bendy::encoding::SingleItemEncoder;
-use rand::rand_core::le;
 use std::{
     io::SeekFrom,
     path::{Path, PathBuf},
     sync::Arc,
     time::Duration,
 };
-use tokio::{fs::{OpenOptions, read}, io::AsyncWriteExt};
+use tokio::io::AsyncWriteExt;
 use tokio::{
-    fs::{self, File},
+    fs::{self},
     io::{self, AsyncSeekExt},
     sync::{Mutex, broadcast, mpsc},
 };
 
-use crate::{
-    peer::Message,
-    torrent::{
-        self, CommitEvent, FileLayout, Info, InfoHash,
+use crate::torrent::{
+        self, FileLayout, InfoHash,
         commit::{self, Error, Event},
         info::{FileMode, NormalisedInfo},
-    },
-};
+    };
 
 pub struct Committer {
     sender: mpsc::Sender<Job>,

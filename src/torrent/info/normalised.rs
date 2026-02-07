@@ -1,9 +1,9 @@
 use serde_bytes::ByteBuf;
-use std::{io, path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc};
 
 use crate::torrent::{
     self, Info, InfoHash,
-    info::{FileMode, InfoFile},
+    info::FileMode,
 };
 
 pub struct NormalisedInfo {

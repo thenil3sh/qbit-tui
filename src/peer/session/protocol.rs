@@ -1,12 +1,6 @@
-use std::io::{self, SeekFrom};
+use std::io::{self};
 
-use bytes::{Bytes, BytesMut};
-use rand::rand_core::le;
-use ratatui::layout::Offset;
-use tokio::{
-    fs,
-    io::{AsyncReadExt, AsyncSeekExt},
-};
+use bytes::Bytes;
 
 use crate::peer::{
     self, Message, PeerSession as Session, Piece, SessionError as Error,

@@ -3,7 +3,7 @@ use tokio::io::AsyncReadExt;
 use tokio::sync::Mutex;
 
 use crate::torrent::{InfoHash, Metadata};
-use std::io::{self, Write};
+use std::io::{self};
 use std::sync::Arc;
 use std::{collections::HashSet, path::PathBuf};
 use tokio::fs::{self, File, create_dir_all};

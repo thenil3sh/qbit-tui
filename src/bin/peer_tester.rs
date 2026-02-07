@@ -5,7 +5,7 @@ use qbit::{
     torrent::{self, info::NormalisedInfo, Committer, FileLayout, Metadata, State},
     tracker::{self},
 };
-use tokio::{io::join, sync::Mutex, task::JoinSet, time::timeout};
+use tokio::{sync::Mutex, task::JoinSet, time::timeout};
 
 #[tokio::main]
 async fn main() {

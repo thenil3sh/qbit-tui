@@ -1,4 +1,3 @@
-use std::time::Duration;
 
 use crate::peer::Message;
 use crate::peer::PeerSession as Session;

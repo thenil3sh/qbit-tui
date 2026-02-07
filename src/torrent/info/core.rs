@@ -1,9 +1,8 @@
-use dirs::data_dir;
 use serde::Deserialize;
 use serde_bytes::ByteBuf;
-use std::{fmt::Debug, ops::Deref, path::PathBuf, sync::Arc};
+use std::{fmt::Debug, ops::Deref, sync::Arc};
 
-use crate::torrent::{Committer, InfoHash, Metadata, State};
+use crate::torrent::InfoHash;
 
 #[derive(Deserialize)]
 pub struct Info {

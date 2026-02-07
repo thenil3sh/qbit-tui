@@ -1,9 +1,8 @@
 use std::{path::{Path, PathBuf}, sync::Arc};
 
-use rand::rand_core::le;
 use serde::{Deserialize, Serialize};
 
-use crate::torrent::{self, info::{FileMode, NormalisedInfo}, Info};
+use crate::torrent::{self, info::{FileMode, NormalisedInfo}};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileLayout {
