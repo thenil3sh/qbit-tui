@@ -14,28 +14,32 @@ pub struct Info {
     pub(crate) info_hash: InfoHash,
     pub(crate) pieces: ByteBuf,
     
-    pub(crate) length: u32,
+    pub(crate) length : Option<u32>,
+    pub(crate) files : Option<Vec<InfoFile>>
 }
 
-#[derive(Deserialize)]
-struct InfoFile {
-    length : u32,
-    path : Vec<String>
+#[derive(Deserialize, Clone)]
+pub(crate) struct InfoFile {
+    pub length : u32,
+    pub path : Vec<String>
 }
 
 pub type AtomicInfo = Arc<Info>;
 
 impl Info {
-    pub fn piece_len(&self, index: u32) -> u32 {
-        let num_pieces = self.pieces.len() as u32 / 20;
-        match index {
-            x if num_pieces <= x => {
-                panic!("Index out of bounds, length is {num_pieces}, but found {x}")
-            }
-            x if x == num_pieces - 1 => self.length % self.piece_length,
-            _ => self.piece_length,
-        }
-    }
+    // pub fn piece_len(&self, index: u32) -> u32 {
+    //     let num_pieces = self.pieces.len() as u32 / 20;
+    //     match index {
+    //         x if num_pieces <= x => {
+    //             panic!("Index out of bounds, length is {num_pieces}, but found {x}")
+    //         }
+    //         x if x == num_pieces - 1 => self.length % self.piece_length,
+    //         _ => self.piece_length,
+    //     }
+    //     match index {
+    //         x if num_pieces.len
+    //     }
+    // }
 
     /// Consumes info and gives out Arc<Info>
     pub fn atomic(self) -> AtomicInfo {

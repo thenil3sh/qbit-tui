@@ -1,5 +1,5 @@
 use crate::torrent::{Info, InfoHash};
-use crate::torrent::{RawInfo, info_hash};
+use crate::torrent::RawInfo;
 use anyhow::{anyhow, bail};
 use bendy::decoding::Object::Dict;
 use serde::Deserialize;
@@ -82,7 +82,8 @@ impl Metadata {
             created_by: String::new(),
             creation_date: 0,
             info: Info {
-                length,
+                length : Some(piece_length),
+                files : None,
                 name: "fake".to_string(),
                 piece_length,
                 info_hash: InfoHash::default(),
@@ -99,7 +100,7 @@ use std::fmt::Debug;
 impl Debug for Info {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Info")
-            .field("length", &format!("{} MBs", self.length))
+            .field("length", &format!("{:?} MBs", self.length))
             .field("name", &self.name)
             .field("piece_size", &self.piece_length)
             .field("pieces", &"[ ... ]")
