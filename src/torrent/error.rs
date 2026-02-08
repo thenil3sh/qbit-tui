@@ -2,6 +2,8 @@
 pub enum Error {
     #[error("Torrent parse failed")]
     InvalidTorrent,
+    #[error(transparent)]
+    DeserialisationError(#[from] bendy::serde::Error),
     #[error("Data directory missing or not set")]
     DataDirMissing
 }

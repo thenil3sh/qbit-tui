@@ -1,8 +1,11 @@
 use serde::{Deserialize, Serialize};
+use sha1::{Digest, Sha1};
 use std::{
     fmt::{Debug, Display},
     ops::Deref,
 };
+
+use crate::torrent::RawInfo;
 
 #[derive(Default, Deserialize, Clone, Copy, Serialize)]
 pub struct InfoHash {
@@ -12,6 +15,16 @@ pub struct InfoHash {
 impl From<[u8; 20]> for InfoHash {
     fn from(value: [u8; 20]) -> Self {
         InfoHash { hash: value }
+    }
+}
+
+impl From<&RawInfo> for InfoHash {
+    fn from(raw_info: &RawInfo) -> Self {
+        let mut hasher = Sha1::new();
+        let buffer: &[u8] = raw_info.as_ref();
+        hasher.update(buffer);
+        let hash: [u8; 20] = hasher.finalize().into();
+        InfoHash { hash }
     }
 }
 

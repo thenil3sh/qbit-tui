@@ -2,8 +2,13 @@ use serde::Deserialize;
 use serde_bytes::ByteBuf;
 use std::{fmt::Debug, ops::Deref, sync::Arc};
 
-use crate::torrent::InfoHash;
+use crate::torrent::{InfoHash, info::NormalisedInfo};
 
+/// # [`Info`]
+/// A direct deserialized Info struct of Bencoded Torrent Metadata.\
+/// Less efficient, and perfomance costing implementation is done with this struct. (unintentionally)\
+/// A derived struct of [`Info`], called [`NormalisedInfo`]  should be considered in practice...
+/// as it offers optimised computation and easier use.
 #[derive(Deserialize)]
 pub struct Info {
     pub(crate) name: String,
@@ -12,10 +17,10 @@ pub struct Info {
 
     pub(crate) pieces: ByteBuf,
 
-    #[serde(skip)]
-    pub(crate) info_hash: InfoHash,
-
+    #[serde(default)]
     pub(crate) length: Option<u32>,
+    
+    #[serde(default)]
     pub(crate) files: Option<Vec<InfoFile>>,
 }
 
@@ -28,6 +33,11 @@ pub(crate) struct InfoFile {
 pub type AtomicInfo = Arc<Info>;
 
 impl Info {
+    /// Returns specified piece's length. Costs
+    /// - _O(1)_ time when it's a single file torrent
+    /// - Otherwise _O(n)_ in case of multiple file torrent.
+    /// 
+    /// [`NormalisedInfo::piece_len`] handles both cases in _O(1)_ time, thus recommended to be taken in use.
     pub fn piece_len(&self, index: u32) -> u32 {
         let num_pieces = self.pieces.len() as u32 / 20;
         if num_pieces <= index {
@@ -39,6 +49,7 @@ impl Info {
         (end - start) as u32
     }
 
+    /// Returns total length of downloadable content, in bytes.
     pub fn total_length(&self) -> u64 {
         match (self.length, self.files.as_ref()) {
             (Some(length), None) => length as u64,
@@ -47,7 +58,7 @@ impl Info {
         }
     }
 
-    /// Consumes info and gives out Arc<Info>
+    /// Consumes info and gives out [`AtomicInfo`] (aliased [`Arc<Info>`])
     pub fn atomic(self) -> AtomicInfo {
         Arc::new(self)
     }

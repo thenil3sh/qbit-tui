@@ -85,7 +85,6 @@ impl Metadata {
                 files : None,
                 name: "fake".to_string(),
                 piece_length,
-                info_hash: InfoHash::default(),
                 pieces: ByteBuf::from(vec![0u8; 20]),
             },
             info_hash: InfoHash::from([0u8; 20]),

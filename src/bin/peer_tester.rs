@@ -15,7 +15,7 @@ async fn main() {
 
     let torrent_info: Arc<torrent::Info> = Arc::new(torrent.info_byte().try_into().unwrap());
     let state: Arc<Mutex<State>> = Arc::new(Mutex::new(State::load_or_new(&torrent).await));
-    let info = NormalisedInfo::try_from(&torrent.info).unwrap().atomic();
+    let info = NormalisedInfo::try_from(torrent.as_ref()).unwrap().atomic();
     let file_layout = Arc::new(FileLayout::try_from(info.as_ref()).unwrap());
     let peers: tracker::Response = tracker::load_cache_or_fetch_tracker(&torrent)
         .await

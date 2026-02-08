@@ -199,7 +199,7 @@ mod test {
         unsafe {
             std::env::set_var("XDG_DATA_HOME", temp_dir.path());
         }
-        let info = NormalisedInfo::try_from(&metadata.info).unwrap().atomic();
+        let info = NormalisedInfo::try_from(metadata).unwrap().atomic();
         let file_layout = FileLayout::try_from(info.as_ref()).unwrap().atomic();
         let state = Arc::new(Mutex::new(State::try_from(metadata).unwrap()));
 
