@@ -28,10 +28,11 @@ impl NormalisedInfo {
             FileMode::Multiple { files } => files.iter().map(|f| f.length).sum(),
         };
 
-        let expected_pieces = (total_length + info.piece_length as u64) / info.piece_length as u64;
+        let expected_pieces = (total_length + info.piece_length as u64 - 1) / info.piece_length as u64;
         let actual_pieces = info.pieces.len() / 20;
 
         if expected_pieces != actual_pieces as u64 {
+            assert_eq!(expected_pieces, actual_pieces as u64);
             return Err(torrent::Error::InvalidTorrent);
         }
 

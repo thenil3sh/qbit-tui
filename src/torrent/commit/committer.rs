@@ -13,10 +13,10 @@ use tokio::{
 };
 
 use crate::torrent::{
-        self, FileLayout, InfoHash,
-        commit::{self, Error, Event},
-        info::{FileMode, NormalisedInfo},
-    };
+    self, FileLayout, InfoHash,
+    commit::{self, Error, Event},
+    info::{FileMode, NormalisedInfo},
+};
 
 pub struct Committer {
     sender: mpsc::Sender<Job>,
@@ -194,7 +194,12 @@ mod test {
         self, CommitJob, Committer, FileLayout, Metadata, State, info::NormalisedInfo,
     };
 
-    fn make_comitter(temp_dir: &TempDir, metadata: &Metadata) -> Committer {
+    async fn with_temp_committer<T, F, Fut>(metadata: &Metadata, f: F) -> T
+    where
+        F: FnOnce(Committer, TempDir) -> Fut,
+        Fut: Future<Output = T>,
+    {
+        let temp_dir = TempDir::new().unwrap();
         let old_home = std::env::var("XDG_DATA_HOME");
         unsafe {
             std::env::set_var("XDG_DATA_HOME", temp_dir.path());
@@ -204,41 +209,42 @@ mod test {
         let state = Arc::new(Mutex::new(State::try_from(metadata).unwrap()));
 
         let comitter = Committer::new(state, info.info_hash, info, file_layout);
+        comitter.init_storage().await.unwrap();
+        let result = f(comitter, temp_dir).await;
+
         unsafe {
             match old_home {
                 Ok(x) => std::env::set_var("XDG_DATA_HOME", x),
                 Err(_) => std::env::remove_var("XDG_DATA_HOME"),
             }
         }
-        comitter
+        result
     }
 
     #[tokio::test]
     #[serial]
     async fn commit_single_piece_in_single_file() {
-        let temp_dir = TempDir::new().unwrap();
         let metadata = Metadata::fake();
-
-        let mut committer = make_comitter(&temp_dir, &metadata);
-        committer.init_storage().await.unwrap();
-
-        let data = vec![0xAB; 1024];
-        let job = CommitJob {
-            index: 0,
-            bytes: data.clone().into(),
-        };
-
-        committer.commit(&job).await.unwrap();
-
-        let file = tokio::fs::read(
-            temp_dir
-                .path()
-                .join(".qbit")
-                .join(committer.info_hash.to_string())
-                .join(&committer.info.name)
-                .with_extension("tmp"),
-        ).await.unwrap();
-        
-        assert_eq!(file, data);
+        with_temp_committer(&metadata, |mut committer, temp_dir| async move {
+            let data = vec![0xAB; 1024];
+            let job = CommitJob {
+                index: 0,
+                bytes: data.clone().into(),
+            };
+            committer.commit(&job).await.unwrap();
+            let file = tokio::fs::read(
+                temp_dir
+                    .path()
+                    .join(".qbit")
+                    .join(committer.info_hash.to_owned().to_string())
+                    .join(&committer.info.name)
+                    .with_extension("tmp"),
+            )
+            .await
+            .unwrap();
+            assert_ne!(file, data.as_slice());
+            assert_eq!(file[..data.len()], data);
+        })
+        .await;
     }
 }
