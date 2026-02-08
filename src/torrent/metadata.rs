@@ -1,3 +1,4 @@
+use crate::torrent::info::FileMode;
 use crate::torrent::{Info, InfoHash};
 use crate::torrent::RawInfo;
 use anyhow::{anyhow, bail};
@@ -81,10 +82,9 @@ impl Metadata {
             created_by: String::new(),
             creation_date: 0,
             info: Info {
-                length : Some(piece_length),
-                files : None,
+                file_mode : FileMode::Single { length },
                 name: "fake".to_string(),
-                piece_length,
+                piece_length : piece_length as u32,
                 pieces: ByteBuf::from(vec![0u8; 20]),
             },
             info_hash: InfoHash::from([0u8; 20]),
@@ -98,7 +98,7 @@ use std::fmt::Debug;
 impl Debug for Info {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Info")
-            .field("length", &format!("{:?} MBs", self.length))
+            .field("length", &format!("{:?} MBs", self.total_length()))
             .field("name", &self.name)
             .field("piece_size", &self.piece_length)
             .field("pieces", &"[ ... ]")

@@ -1,4 +1,3 @@
-mod sessi;
 mod error;
 mod event;
 mod piece;

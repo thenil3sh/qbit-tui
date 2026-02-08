@@ -2,7 +2,7 @@ use serde::Deserialize;
 use serde_bytes::ByteBuf;
 use std::{fmt::Debug, ops::Deref, sync::Arc};
 
-use crate::torrent::{InfoHash, info::NormalisedInfo};
+use crate::torrent::{info::{FileMode, NormalisedInfo}, InfoHash};
 
 /// # [`Info`]
 /// A direct deserialized Info struct of Bencoded Torrent Metadata.\
@@ -17,14 +17,11 @@ pub struct Info {
 
     pub(crate) pieces: ByteBuf,
 
-    #[serde(default)]
-    pub(crate) length: Option<u32>,
-    
-    #[serde(default)]
-    pub(crate) files: Option<Vec<InfoFile>>,
+    #[serde(flatten)]
+    pub(crate) file_mode : FileMode,
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize, Clone, Debug)]
 pub(crate) struct InfoFile {
     pub length: u64,
     pub path: Vec<String>,
@@ -51,10 +48,9 @@ impl Info {
 
     /// Returns total length of downloadable content, in bytes.
     pub fn total_length(&self) -> u64 {
-        match (self.length, self.files.as_ref()) {
-            (Some(length), None) => length as u64,
-            (None, Some(files)) => files.iter().map(|f| f.length).sum(),
-            (_, _) => panic!("Invalid torrent file"),
+        match self.file_mode.as_ref() {
+            FileMode::Single { length } => *length,
+            FileMode::Multiple { files } => files.iter().map(|f| f.length).sum(),
         }
     }
 

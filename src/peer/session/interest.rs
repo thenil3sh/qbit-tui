@@ -61,7 +61,7 @@ impl Session {
         my_state
             .bit_field
             .iter()
-            .zip(self.bit_field.as_ref().unwrap().iter())
+            .zip(self.bit_field.as_ref().expect("Tried to access uninitialised bitfield").iter())
             .any(|(mine, peer)| !mine & peer != 0)
     }
 

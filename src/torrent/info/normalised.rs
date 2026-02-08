@@ -22,19 +22,10 @@ impl NormalisedInfo {
     }
     
     pub(crate) fn try_new(info : &Info, info_hash : InfoHash) -> Result<Self, torrent::Error> {
-        let file_mode = match (info.length, info.files.as_ref()) {
-            (Some(length), None) => FileMode::Single {
-                length: length as u64,
-            },
-            (None, Some(files)) => FileMode::Multiple {
-                files: files.clone(),
-            },
-            _ => Err(torrent::Error::InvalidTorrent)?,
-        };
 
-        let total_length = match file_mode {
-            FileMode::Single { length } => length,
-            FileMode::Multiple { ref files } => files.iter().map(|f| f.length as u64).sum(),
+        let total_length = match info.file_mode.as_ref() {
+            FileMode::Single { length } => *length,
+            FileMode::Multiple { files } => files.iter().map(|f| f.length).sum(),
         };
 
         let expected_pieces = (total_length + info.piece_length as u64) / info.piece_length as u64;
@@ -50,7 +41,7 @@ impl NormalisedInfo {
             pieces: info.pieces.clone(),
             info_hash,
             total_length,
-            file_mode,
+            file_mode : info.file_mode.clone(),
         })
     }
 
