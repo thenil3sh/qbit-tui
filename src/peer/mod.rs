@@ -3,6 +3,7 @@ mod handshake;
 mod connection;
 mod message;
 mod session;
+mod bitfield;
 
 use std::net::Ipv4Addr;
 
@@ -14,6 +15,7 @@ pub use message::*;
 pub use session::Session as PeerSession;
 pub(crate) use session::Error as SessionError;
 pub(crate) use session::Piece;
+pub use bitfield::Bitfield;
 
 use crate::peer::id::Id;
 

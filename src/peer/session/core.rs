@@ -18,7 +18,7 @@ pub struct Session {
     pub(crate) is_interested: bool,
     pub(crate) am_choking: bool,
     pub(crate) am_interested: bool,
-    pub(crate) bit_field: Option<Vec<u8>>,
+    pub(crate) bit_field: Vec<u8>,
 }
 
 impl Session {
@@ -29,6 +29,8 @@ impl Session {
         commit_tx: mpsc::Sender<CommitJob>,
         commit_rx: broadcast::Receiver<commit::Event>,
     ) -> Self {
+        let num_pieces = ((torrent_info.pieces.len() / 20) + 7)/8;
+        let bit_field = vec![0u8; num_pieces];
         Self {
             commit_tx,
             commit_rx,
@@ -40,7 +42,7 @@ impl Session {
             is_interested: false,
             am_choking: true,
             am_interested: false,
-            bit_field: None,
+            bit_field,
         }
     }
 }
@@ -73,7 +75,6 @@ impl Session {
             let Some(piece_request) = current_piece.next_block() else {
                 break;
             };
-            // eprintln!("{piece_request:?} SENT");
             self.connection.send(piece_request).await?;
         }
         Ok(())

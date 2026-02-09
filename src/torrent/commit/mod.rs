@@ -8,3 +8,6 @@ pub use committer::Committer;
 pub use job::Job;
 pub(crate) use event::Event;
 pub use event::Event as CommitEvent;
+
+#[cfg(test)]
+mod tests;

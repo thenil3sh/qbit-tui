@@ -158,7 +158,10 @@ impl Session {
     ) -> Result<session::Event, session::Error> {
         match message {
             Message::Bitfield(x) => {
-                self.bit_field = Some(x.into());
+                if self.bit_field.len() != x.len() {
+                    panic!("Found a guy violating protocol, lmao")
+                }
+                self.bit_field.copy_from_slice(&x);
                 Ok(Event::BitFieldUpdated)
             }
             Message::Choke => {
@@ -184,10 +187,6 @@ impl Session {
                 })
             }
             Message::Have(x) => {
-                if self.bit_field.is_none() {
-                    let len = self.state.lock().await.num_pieces() / 8;
-                    self.bit_field = Some(vec![0u8; len as usize]);
-                }
                 self.update_bitfield(x)?;
                 Ok(Event::Have(x))
             }

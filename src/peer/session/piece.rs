@@ -94,6 +94,7 @@ impl Piece {
         (self.received.len(), self.total_blocks() as usize)
     }
 
+    
     fn in_flight_count(&self) -> usize {
         self.on_fly.len()
     }

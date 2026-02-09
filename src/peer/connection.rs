@@ -40,6 +40,7 @@ impl Connection {
         let id = self.stream.read_u8().await?;
         let payload = Self::scrap_payload(&mut self.stream, length as usize).await?;
         let message = Message::decode(id, payload)?;
+        #[cfg(debug_assertions)]
         eprintln!("\x1b[30mSESSION {:>15} | Recieved : {:?}\x1b[0m", self.peer.ip, message);
         Ok(message)
     }
@@ -55,6 +56,7 @@ impl Connection {
     /// Writes the encoded message to the TCP stream
     pub(crate) async fn send(&mut self, message : Message) -> Result<(), session::Error> {
         self.stream.write_all(&message.encode()).await?;
+        #[cfg(debug_assertions)]
         println!("SESSION {:>15} | Sent     : {:?}", self.peer.ip, message);
         Ok(())
     }

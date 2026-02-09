@@ -9,8 +9,6 @@ impl Session {
         let mut state = self.state.lock().await;
         for (byte_idx, (peer, mine)) in self
             .bit_field
-            .as_ref()
-            .unwrap()
             .iter()
             .zip(state.bit_field.iter())
             .enumerate()
@@ -39,18 +37,21 @@ impl Session {
         None
     }
 
-    /// Update peer's bitfield, may help tracking us tracking our interesting states
+    /// Update peer's bitfield, helps keeping track of peer's bitfield
+    /// 
+    /// ## Error
+    /// Fails when Piece requested larger in size than bitfields is supposed to hold
     pub(crate) fn update_bitfield(&mut self, index: u32) -> session::Result<()> {
         let piece = index as usize;
         let byte = piece / 8;
-        if byte >= self.bit_field.as_ref().unwrap().len() {
+        if byte >= self.bit_field.len() {
             return Err(Error::BadRequest);
         }
         let bit = piece % 8;
 
         let mask = 1 << (7 - bit);
 
-        self.bit_field.as_mut().unwrap()[byte] |= mask;
+        self.bit_field[byte] |= mask;
         Ok(())
     }
 
@@ -61,7 +62,7 @@ impl Session {
         my_state
             .bit_field
             .iter()
-            .zip(self.bit_field.as_ref().expect("Tried to access uninitialised bitfield").iter())
+            .zip(self.bit_field.iter())
             .any(|(mine, peer)| !mine & peer != 0)
     }
 
