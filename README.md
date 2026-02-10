@@ -14,21 +14,22 @@ A bittorrent client, implementated in Rust.
 
 
 
+
 # ToDo
 - [x] Add todo, lmao
 - [x] Deserialize tracker's response into url
+- [ ] `(next)` session and state migration to session::peer::bitfield
+- [ ] `(next)` session runtime overhaul
+- [ ] `(next)` more docs
+- [ ] `(next)` local endpoint for ui :0
 - [ ] kindly, explore ratatui
 - [ ] don't give up, please
-- [ ] `(new)` Support for multifile torrents
 - [ ] make error for every module
 - [x] save state to a file as well as retrive ⭐
 - [x] Handle pieces sent by peers
 - [ ] Limit active users, as configured
 - [x] any new piece gets marked as bad :(
-- [ ] more tests!!!
 - [x] Remove hardcoded values
-- [ ] Actually test your api, lmao
-- [ ] Check if peer's sending/asking for a valid piece
 - [x] Implement Debug for Messages, manually
 - [x] Implement serializer for Message
 - [x] prepare and send `Request Message`

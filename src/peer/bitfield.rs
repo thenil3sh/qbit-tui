@@ -63,20 +63,41 @@ impl Bitfield {
         self.as_ref()
     }
     
-    
+    /// Idiomatically, `bitfield1.has_anything_for(&bitfield2)`
+    /// 
+    /// Compares current bitfield with the other bitfield, 
+    /// and returns whether other as anything interesting in it.
+    /// 
+    /// # Note
+    /// This is asymmetric in behavior,
+    /// meaning, having two separate bitfields, say `bf1` and `bf2`
+    /// ```
+    /// use qbit::peer::Bitfield;
+    /// let bf1 = Bitfield::new(10);
+    /// let bf2 = Bitfield::new(10);
+    /// assert_eq!(bf1.has_any(&bf2), bf2.has_any(&bf1)); // will fail, unless they are same
+    /// ``` 
+    /// So, to conclude this, one must understand, if `bf1.has_any(bf2)` is `true`, that means 
+    /// peer with `bf1` has something that peer with `bf2` might be interested.
     pub fn has_any(&self, other : &Bitfield) -> bool {
         debug_assert_eq!(self.len(), other.len());
         
-        for (this, that) in self.bitfield.iter().zip(other.bitfield.iter()) {
-            let difference = !this & that;
+        for (that, this) in other.bitfield.iter().zip(self.bitfield.iter()) {
+            let difference = this & !that;
             if difference != 0 {
                 return true;
             }
         }
         false
     }
+    
+    /// Returns bitfield is empty
+    pub fn is_empty(&self) -> bool {
+        self.bitfield.iter().all(|x| *x == 0)
+    }
 
     /// Copies the byte slice update the bitfield
+    /// 
     /// 
     /// ## Error
     /// This method returns with an [`Error::InvalidLength`] if the two slices have different lengths.
@@ -144,4 +165,99 @@ pub enum Error {
     IndexOutOfBound,
     #[error("Unexpected length of bitfield")]
     InvalidLength { expected: usize, got: usize },
+}
+
+#[cfg(test)]
+mod tests {
+    use sha1::digest::typenum::bit;
+
+    use crate::peer::Bitfield;
+    
+    #[test]
+    fn bitfield_new_creates_an_empty_bitfield() {
+        let bf = Bitfield::new(10);
+        
+        assert!(bf.as_ref().iter().all(|x| *x == 0));
+        assert!(bf.is_empty());
+    }
+    
+    #[test]
+    fn bitfield_marks_a_piece_successful() {
+        let mut bf = Bitfield::new(10);
+        
+        assert!(bf.is_empty());
+        
+        assert!(!bf.update(3).unwrap());
+        assert!(bf.update(20).is_err());
+        assert!(bf.update(10).is_err());
+        assert!(!bf.update(8).is_err());
+        
+        assert_eq!(bf.bitfield.as_ref(), &[0b00010000, 0b10000000])
+    }
+    
+    #[test]
+    fn update_and_have_work_fine_with_each_other() {
+        let mut bf = Bitfield::new(20);
+        
+        let _ = bf.update(10);
+        let _ = bf.update(2);
+        let _ = bf.update(5);
+        assert!(bf.update(20).is_err());
+        assert!(bf.update(23).is_err());
+        
+        assert!(bf.has(20).is_err());
+        assert!(bf.has(10).unwrap());
+        assert!(!bf.has(3).unwrap());
+        assert!(!bf.has(6).unwrap());
+        assert!(bf.has(5).unwrap());
+    }
+    
+    #[test]
+    fn update_from_slice_update_rejects_wrong_bitfield_lengths() {
+        let mut bitfield = Bitfield::new(11);
+        let longer = [0, 1, 4, 2, 10];
+        let smaller = [3];
+        let copyable = [0b00000001, 0b00000010];
+        
+        assert!(bitfield.update_from_peer(longer).is_err());
+        assert!(bitfield.update_from_peer(smaller).is_err());
+        assert!(bitfield.update_from_peer(copyable).is_ok());
+        
+        // passes because, Bitfield::clear_unused_trail_units removes two
+        assert_eq!(bitfield.as_ref(), &[0b00000001,0b000000000]);
+    }
+    
+    #[test]
+    fn has_any_detects_interest_correctly() {
+        let mut peer1 = Bitfield::new(8);
+        let mut peer2 = Bitfield::new(8);
+
+        peer1.update(2).unwrap();
+        assert!(peer1.has_any(&peer2));
+
+        peer2.update(2).unwrap();
+        assert!(!peer1.has_any(&peer2));
+    }
+    
+    #[test]
+    fn has_any_is_asymmetric() {
+        let mut bitfield1 = Bitfield::new(10);
+        let _ = bitfield1.update(2);
+        let _ = bitfield1.update(3);
+        
+        let mut bitfield2 = Bitfield::new(10);
+        let _ = bitfield2.update(2);
+        let _ = bitfield2.update(3);
+        
+        assert!(!bitfield1.has_any(&bitfield2));
+        
+        let _ = bitfield1.update(5);
+        assert!(bitfield1.has_any(&bitfield2));
+        assert!(!bitfield2.has_any(&bitfield1));
+        
+        let _ = bitfield2.update(6);
+        assert!(bitfield1.has_any(&bitfield2));
+        assert!(bitfield2.has_any(&bitfield1));
+    }
+    
 }
