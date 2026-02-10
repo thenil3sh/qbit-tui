@@ -1,6 +1,10 @@
 # qbit-tui
 A bittorrent client, implementated in Rust.
 
+> [!NOTE] 
+> **ARCHIVED**, yes\
+> You see it, repo will stay archived for a while. I've got some more projects to work on! I'll be back soon, fr.
+
 > [!WARNING]
 > The api implementation is still in progress. So don't expect to `cargo run` and get a favourable outcome.
 > At the moment, the client only behaves as a free-rider, thus shoudn't be taken in use.
