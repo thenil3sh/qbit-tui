@@ -2,6 +2,8 @@
 name = "qbit"
 version = "0.1.0"
 edition = "2024"
+authors = ["thenil3sh <thenil3sh@users.noreply.github.com>"]
+license = "MIT"
 
 [profile.release]
 codegen-units = 1
